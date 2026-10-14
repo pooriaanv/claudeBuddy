@@ -1,0 +1,143 @@
+/* Settings window — a copy of the Mac SettingsView look (grouped Form, segmented tab bar), light + dark. */
+:root {
+  --bg: #f5f5f5;
+  --panel: #f0f0f0;
+  --panel-border: #e2e2e2;
+  --text: #222;
+  --secondary: #6e6e6e;
+  --separator: #dcdcdc;
+  --control: #e3e3e3;
+  --control-on: #ffffff;
+  --accent: #3478f6;
+  --green: #34c759;
+  --red: #e5484d;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #2a2a2a;
+    --panel: #323232;
+    --panel-border: #3c3c3c;
+    --text: #ececec;
+    --secondary: #a0a0a0;
+    --separator: #444;
+    --control: #3e3e3e;
+    --control-on: #6a6a6a;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 13px "Segoe UI", "Vazirmatn", system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+  overflow: hidden;
+}
+html[dir="rtl"] body { font-family: "Vazirmatn", "Segoe UI", sans-serif; }
+
+/* tab bar: segmented control centered on top */
+#tabs {
+  align-self: center;
+  display: flex;
+  margin: 8px 0 0;
+  padding: 2px;
+  background: var(--control);
+  border-radius: 7px;
+  position: relative;
+  z-index: 1;
+}
+#tabs button {
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  padding: 3px 14px;
+  border-radius: 5px;
+  cursor: default;
+}
+#tabs button.on { background: var(--control-on); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18); }
+
+main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 22px 22px 18px;
+}
+.section {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 9px;
+  padding: 0 10px;
+  margin-bottom: 10px;
+}
+.section-title { font-weight: 600; margin: 18px 10px 8px; }
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 6px 0;
+}
+.row + .row, .row + .note, .note + .row { border-top: 1px solid var(--separator); }
+.row .label { flex: 1; }
+.note { color: var(--secondary); font-size: 11.5px; line-height: 1.45; padding: 8px 0; }
+.mono { font-family: "Cascadia Mono", Consolas, monospace; user-select: text; }
+
+/* segmented picker */
+.seg { display: flex; background: var(--control); border-radius: 6px; padding: 2px; }
+.seg button {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  padding: 3px 16px;
+  border-radius: 5px;
+}
+.seg button.on { background: var(--control-on); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18); font-weight: 500; }
+.seg.wide { flex: 1; }
+
+/* switch */
+.switch { position: relative; width: 32px; height: 18px; flex: none; }
+.switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+.switch span {
+  position: absolute; inset: 0; background: #c9c9c9; border-radius: 9px; transition: background 0.15s;
+}
+.switch span::after {
+  content: ""; position: absolute; top: 1px; left: 1px; width: 16px; height: 16px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); transition: transform 0.15s;
+}
+.switch input:checked + span { background: var(--accent); }
+.switch input:checked + span::after { transform: translateX(14px); }
+
+button.push {
+  font: inherit;
+  color: var(--text);
+  background: var(--control-on);
+  border: 1px solid var(--separator);
+  border-radius: 6px;
+  padding: 3px 10px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06);
+}
+button.push.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+button.push:disabled { opacity: 0.5; }
+
+/* character cards */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; padding: 10px 0; }
+.card {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 6px; border-radius: 12px; border: 1px solid rgba(128, 128, 128, 0.25); background: transparent;
+  color: var(--text); font: inherit;
+}
+.card canvas { width: 78px; height: 104px; }
+.card.on { background: rgba(52, 120, 246, 0.15); border: 2px solid var(--accent); padding: 5px; font-weight: 600; }
+input[type="range"] { flex: 1; max-width: 50%; accent-color: var(--accent); }
+
+.status-ok { color: var(--green); }
+.status-err { color: var(--red); }
+.agent-name { font-weight: 500; font-size: 14px; }
+.agent-status { font-size: 11.5px; color: var(--secondary); margin-top: 2px; }

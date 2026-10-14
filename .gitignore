@@ -1,0 +1,11 @@
+node_modules/
+dist/
+app/src-tauri/target/
+app/src-tauri/gen/
+app/src-tauri/resources/
+app/notify/target/
+*.buddy-backup
+.DS_Store
+
+# internal port notes (kept locally)
+docs/port/

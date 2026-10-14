@@ -1,0 +1,56 @@
+[package]
+name = "claudebuddy"
+version = "0.0.9"
+description = "Claude Buddy - a little desktop pet that knocks when an AI agent finishes"
+authors = ["Claude Buddy contributors"]
+edition = "2024"
+
+[lib]
+# The `_lib` suffix is needed on Windows so the lib name does not clash with the bin name
+# (https://github.com/rust-lang/cargo/issues/8519).
+name = "claudebuddy_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+# The executable is called ClaudeBuddy.exe (12-windows-plan.md D15).
+name = "ClaudeBuddy"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-autostart = "2"
+tauri-plugin-single-instance = "2"
+serde = { version = "1", features = ["derive"] }
+# preserve_order: hooks.rs keeps the key order of the user's settings.json (12-windows-plan.md D11, Q4).
+serde_json = { version = "1", features = ["preserve_order"] }
+# Already in the dependency tree (tauri); used by the --snapshot command to decode the PNG the page sends back.
+base64 = "0.22"
+# Prefs (12-windows-plan.md D14): prefs.json in the app data dir (com.pooria.claudebuddy), used from the page.
+tauri-plugin-store = "2"
+
+[target.'cfg(windows)'.dependencies]
+# Same version as the one tauri/tao/wry already pull in (see `cargo tree -i windows`), so there is one copy.
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Dwm",
+    "Win32_Graphics_Gdi",
+    "Win32_Security",
+    "Win32_System_Console",
+    "Win32_System_SystemInformation",
+    "Win32_System_Threading",
+    "Win32_UI_Accessibility",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+# Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true

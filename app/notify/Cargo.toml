@@ -1,0 +1,33 @@
+# The hook helper (12-windows-plan.md D10): a tiny console program that agents run as a hook command.
+# NOT a member of any workspace and has no Tauri dependencies, so it stays small and starts fast.
+[package]
+name = "buddy-notify"
+version = "0.0.9"
+description = "Claude Buddy hook helper: drops an event file into ~/.claude-buddy/inbox"
+authors = ["Claude Buddy contributors"]
+edition = "2024"
+
+[[bin]]
+name = "buddy-notify"
+path = "src/main.rs"
+
+[target.'cfg(windows)'.dependencies]
+# Same version as the one Tauri pulls in (see src-tauri/Cargo.lock), so the registry cache already has it.
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Console",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_Threading",
+] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
+# panic stays "unwind": main catches panics so the exit code is always 0.
+
+# Keeps cargo from treating this directory as part of another workspace.
+[workspace]
