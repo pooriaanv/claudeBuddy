@@ -5,6 +5,7 @@
   "windows": ["pet", "settings"],
   "permissions": [
     "core:event:default",
+    "core:app:default",
     "core:window:allow-set-title",
     "store:default",
     "autostart:default",
