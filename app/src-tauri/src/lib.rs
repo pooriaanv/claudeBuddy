@@ -1,5 +1,5 @@
 mod agents;
-mod dev; // DEBUG (P3) -- dev-only env hooks
+mod dev; // BUDDY_DEBUG logging
 mod geometry;
 mod hooks;
 mod inbox;
@@ -32,6 +32,8 @@ pub fn run() {
     builder
         // Prefs (D14): the page reads / writes prefs.json through this plugin.
         .plugin(tauri_plugin_store::Builder::new().build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
         .setup(move |app| {
             match snapshot_args {
@@ -41,10 +43,6 @@ pub fn run() {
                     pet::create_window(app.handle())?;
                     agents::start(app.handle());
                     tray::create(app.handle())?;
-                    // DEBUG (P5): open the settings window on a tab for screenshots
-                    if let Some(t) = std::env::var("BUDDY_DEBUG_SETTINGS").ok().and_then(|v| v.parse::<u8>().ok()) {
-                        let _ = tray::open_settings_tab(app.handle().clone(), "Settings".into(), Some(t));
-                    }
                 }
             }
             Ok(())
@@ -69,7 +67,6 @@ pub fn run() {
             agents::hooks_disconnect,
             snapshot::snapshot_done,
             snapshot::snapshot_error,
-            // DEBUG (P3)
             dev::debug_config,
             dev::debug_log,
         ])

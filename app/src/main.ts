@@ -1,22 +1,23 @@
 // Pet window entry (12-windows-plan.md P3): prefs + fonts, the PetController on one transparent canvas, click-through
 // input, live preference changes. The Coordinator (agents, queue, tray) arrives in P4/P5.
 
-import { listen } from "@tauri-apps/api/event";
+import { emit, listen } from "@tauri-apps/api/event";
 import { PetInput, PressTracker } from "./app/hitTest";
 import { PetController } from "./app/pet";
 import { Coordinator } from "./app/coordinator";
 import { KnockSound } from "./app/sound";
 import { rebuildTray } from "./app/trayMenu";
+import { Updater } from "./app/updater";
 import { invoke } from "@tauri-apps/api/core";
 import { Preferences } from "./app/prefs";
-import { debugConfig, debugLogger, scheduleTestKnock } from "./app/debug"; // DEBUG (P3)
+import { debugConfig, debugLogger } from "./app/debug";
 import { TauriPlatform, ipc } from "./app/platform";
 import type { HoverEvent } from "./app/types";
 import { loadFonts } from "./render/fonts";
 
 async function main(): Promise<void> {
   const canvas = document.getElementById("pet") as HTMLCanvasElement;
-  const dbg = await debugConfig(); // DEBUG (P3)
+  const dbg = await debugConfig();
   const prefs = await Preferences.load();
   await loadFonts(); // canvas text never waits for a font: the bubble / hint need the faces before the first frame
   const monitors = await ipc.monitors();
@@ -35,8 +36,27 @@ async function main(): Promise<void> {
   pet.sound = new KnockSound();
   const coordinator = new Coordinator(prefs, pet, debugLogger(dbg) ?? undefined);
   // Coordinator.preferencesChanged: skin, size, language ... apply live.
-  const tray = (): void => rebuildTray(prefs, coordinator.queue.entries, null);
-  coordinator.onQueueChanged = () => tray();
+  const updater = new Updater();
+  await updater.init();
+  const tray = (): void => rebuildTray(prefs, coordinator.queue.entries, updater.availableVersion);
+  // Coordinator.installUpdateIfAllowed: only when allowed, nothing is waiting and the buddy is just hanging out.
+  const installIfAllowed = (): void => {
+    if (prefs.autoUpdate && updater.availableVersion !== null && coordinator.queue.isEmpty && pet.mode === "idle") {
+      void updater.install();
+    }
+  };
+  const broadcastUpdate = (): void => void emit("update-state", { state: updater.state, current: updater.current });
+  updater.onChange = () => {
+    tray();
+    broadcastUpdate();
+    installIfAllowed();
+  };
+  coordinator.onQueueChanged = () => {
+    tray();
+    installIfAllowed();
+  };
+  setTimeout(() => void updater.checkIfDue(), 10_000);
+  setInterval(() => void updater.checkIfDue(), 3600_000);
   prefs.onChange(() => {
     pet.relayout();
     coordinator.preferencesChanged();
@@ -61,7 +81,15 @@ async function main(): Promise<void> {
       case "quit":
         void invoke("quit");
         break;
-      // "checkUpdates" / "installUpdate": P6
+      case "checkUpdates":
+        void updater.check();
+        break;
+      case "installUpdate":
+        void updater.install();
+        break;
+      case "updateState": // the settings window asks for the current state
+        broadcastUpdate();
+        break;
     }
   });
   tray();
@@ -69,7 +97,6 @@ async function main(): Promise<void> {
 
   await pet.start(); // window on the floor + first frame drawn
   await ipc.petReady(); // shows the window (no white flash)
-  scheduleTestKnock(dbg, pet, prefs); // DEBUG (P3)
 }
 
 void main();

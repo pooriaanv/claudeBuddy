@@ -1,0 +1,54 @@
+name: Release
+
+# Push a tag like v0.1.0 (matching app/src-tauri/tauri.conf.json "version") to test, build, sign and publish the
+# Windows installer + the updater manifest (latest.json) as a GitHub release.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Check the version matches the tag
+        shell: bash
+        run: |
+          v=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          if [ "v$v" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tauri.conf.json version is $v but the tag is $GITHUB_REF_NAME"
+            exit 1
+          fi
+
+      - run: npm ci
+      - run: npm test
+
+      - name: Build, sign and publish
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: app
+          tagName: ${{ github.ref_name }}
+          releaseName: ClaudeBuddy ${{ github.ref_name }}
+          releaseBody: Download `ClaudeBuddy_*_x64-setup.exe` below and run it (per-user install, no admin). Installed copies update themselves.
+          releaseDraft: false
+          includeUpdaterJson: true
+          args: '--config {"bundle":{"createUpdaterArtifacts":true}}'

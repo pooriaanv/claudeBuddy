@@ -23,6 +23,8 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = ["tray-icon", "image-png"] }
 tauri-plugin-autostart = "2"
 tauri-plugin-single-instance = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 serde = { version = "1", features = ["derive"] }
 # preserve_order: hooks.rs keeps the key order of the user's settings.json (12-windows-plan.md D11, Q4).
 serde_json = { version = "1", features = ["preserve_order"] }

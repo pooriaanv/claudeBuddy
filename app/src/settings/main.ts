@@ -3,6 +3,8 @@
 
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import type { UpdateState } from "../app/updater";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import type { Mischief } from "../core/brain";
 import type { Language, L10nKey } from "../core/localization";
@@ -19,6 +21,8 @@ interface HookStatus {
 }
 
 let tab = 0;
+type UpdateInfo = { state: UpdateState; current: string };
+let updateInfo: UpdateInfo | null = null;
 let previews: SkinPreview[] = [];
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = "", text = ""): HTMLElementTagNameMap[K] {
@@ -150,12 +154,24 @@ async function render(prefs: Preferences): Promise<void> {
     }
     section().append(el("div", "note", t("codexTrustHint")), el("div", "note mono", t("otherAgentsHint")));
   } else {
-    // updatesTab (the updater itself is P6)
-    const v = await getVersion();
-    section().append(
-      row(l.format("updateVersion", { v }), button(t("checkNow"), () => void invoke("settings_action", { id: "checkUpdates" }))),
-      row(t("updatesAuto"), toggle(prefs.autoUpdate, (on) => { prefs.autoUpdate = on; })),
-    );
+    // updatesTab: the state lives in the pet window's Updater (update-state events)
+    const v = updateInfo?.current ?? (await getVersion());
+    const st = updateInfo?.state ?? { kind: "idle" };
+    let status: string;
+    switch (st.kind) {
+      case "checking": status = t("updateChecking"); break;
+      case "upToDate": status = l.format("updateUpToDate", { v }); break;
+      case "available": status = l.format("updateAvailable", { v: st.version }); break;
+      case "installing": status = t("updateInstalling"); break;
+      case "failed": status = l.format("updateFailed", { v: st.message }); break;
+      default: status = l.format("updateVersion", { v });
+    }
+    const label = el("span", st.kind === "failed" ? "label status-err" : "label", status);
+    const action = st.kind === "available"
+      ? button(t("installNow"), () => void invoke("settings_action", { id: "installUpdate" }), "push primary")
+      : button(t("checkNow"), () => void invoke("settings_action", { id: "checkUpdates" }));
+    if (st.kind === "checking" || st.kind === "installing") action.disabled = true;
+    section().append(row(label, action), row(t("updatesAuto"), toggle(prefs.autoUpdate, (on) => { prefs.autoUpdate = on; })));
   }
 }
 
@@ -165,6 +181,11 @@ async function main(): Promise<void> {
   const tabArg = Number(new URLSearchParams(location.search).get("tab") ?? "0");
   if (tabArg >= 0 && tabArg <= 3) tab = tabArg;
   prefs.onChange((key) => { if (key === "language" || key === "skin" || key === "soundOn") void render(prefs); });
+  await listen<UpdateInfo>("update-state", (e) => {
+    updateInfo = e.payload;
+    if (tab === 3) void render(prefs);
+  });
+  void invoke("settings_action", { id: "updateState" });
   await render(prefs);
 }
 

@@ -62,7 +62,6 @@ pub fn set_click_through(enabled: bool) {
     #[cfg(windows)]
     if let Some(hwnd) = crate::platform::windows::pet_hwnd() {
         crate::platform::windows::set_click_through(hwnd, enabled);
-        crate::dev::log(&format!("click_through={enabled} rect={:?}", crate::platform::windows::window_rect(hwnd)));
     }
     #[cfg(not(windows))]
     let _ = enabled;
@@ -127,7 +126,7 @@ pub fn create_window(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::E
         let ex = w::apply_pet_ex_style(hwnd, true);
         let subclassed = w::install_pet_subclass(hwnd);
         w::install_desktop_watch();
-        w::set_level(hwnd, if dev::front_requested() { w::Level::Front } else { w::Level::Desktop }); // DEBUG (P3): front
+        w::set_level(hwnd, w::Level::Desktop);
         w::set_frame(hwnd, frame);
         dev::log(&format!(
             "pet window: exstyle=0x{ex:08x} subclass={subclassed} frame={frame:?} actual={:?} rcWork={:?}",
