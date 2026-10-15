@@ -373,60 +373,36 @@ export class Animator {
         s.shadow = 1 - 0.35 * q;
         break;
       }
+      // Martial moves are choreographed with keyframes (Pooria, 2026-10-15): strikes snap out fast, hold for a beat,
+      // and come back smoothly - like real kata, not a sine wave.
       case "kata": {
-        // four strikes, alternating sides, back to guard in between
         p.fists = true;
-        const k = Math.floor(e / 0.8);
-        const local = (e % 0.8) / 0.8;
-        const strike = Math.sin(Math.min(1, local / 0.6) * Math.PI);
-        const side = k % 2 === 0 ? 1 : -1;
-        p.leftArm = side < 0 ? lerp(150, 92, strike) : 150;
-        p.rightArm = side > 0 ? lerp(-150, -92, strike) : -150;
-        p.lean = side * 4 * strike;
-        p.lift = -Math.abs(Math.sin(e * Math.PI * 2.5)) * 2;
-        p.look = { x: side, y: 0 };
-        p.turn = side * 0.3;
-        p.mouth = "small";
+        choreo(p, e, KATA);
+        p.mouth = e > 4.7 && e < 5.3 ? "o" : "small"; // kiai on the last strike
         break;
       }
       case "kick": {
-        const q = Math.sin(Math.min(1, e / 1.2) * Math.PI);
         p.fists = true;
-        p.kick = q;
-        p.lean = -q * 9;
-        p.lift = -q * 5;
-        p.leftArm = lerp(p.leftArm, 130, q);
-        p.rightArm = lerp(p.rightArm, -60, q);
+        choreo(p, e, KICK);
         p.look = { x: 1, y: 0 };
-        p.turn = 0.4 * q;
         p.mouth = "small";
         break;
       }
       case "shuriken": {
-        // wind up, throw to the right, the star flies off
         p.fists = true;
-        const wind = smooth(e / 0.4);
-        const throwK = smooth((e - 0.4) / 0.2);
-        p.rightArm = lerp(lerp(p.rightArm, -165, wind), -75, throwK);
-        p.leftArm = lerp(p.leftArm, 40, wind);
-        p.lean = -3 * wind + 6 * throwK;
-        p.shuriken = e > 0.5 ? Math.min(1, (e - 0.5) / 0.9) : -1;
+        choreo(p, e, SHURIKEN);
+        // two throws, one star in the air at a time
+        p.shuriken = e >= 0.9 && e < 1.7 ? (e - 0.9) / 0.8 : e >= 1.75 && e < 2.55 ? (e - 1.75) / 0.8 : -1;
         p.look = { x: 1, y: 0 };
-        p.turn = 0.5;
         p.mouth = "small";
         break;
       }
       case "sword": {
-        // katana out (left arm > 80 draws it), a few slashes
-        const sw = Math.sin(e * 5);
-        p.leftArm = 115 + sw * 40;
-        p.rightArm = -35;
-        p.lean = sw * 5;
-        p.headTilt += sw * 3;
-        p.look = { x: -sw, y: 0 };
+        // the katana is out while the left arm is above 80 degrees
+        choreo(p, e, SWORD);
         p.mouth = "small";
         break;
-      }      case "fall":
+      }     case "fall":
         p.mood = "surprised";
         p.mouth = "o";
         p.leftArm = 150;
@@ -437,3 +413,100 @@ export class Animator {
     }
   }
 }
+
+// ---- Windows additions (Pooria, 2026-10-15): keyframed martial-arts moves ----
+
+/// One pose of a move at time `t` (seconds into the activity). `snap`: reach it fast (a strike), else ease in/out.
+interface Key {
+  t: number;
+  l: number;
+  r: number;
+  lean?: number;
+  lift?: number;
+  turn?: number;
+  kick?: number;
+  snap?: boolean;
+}
+
+function choreo(p: Pose, e: number, keys: readonly Key[]): void {
+  let i = 0;
+  while (i < keys.length - 1 && e >= keys[i + 1].t) i++;
+  const a = keys[i];
+  const b = keys[Math.min(i + 1, keys.length - 1)];
+  const u = b.t > a.t ? Math.min(1, Math.max(0, (e - a.t) / (b.t - a.t))) : 1;
+  const k = b.snap ? 1 - Math.pow(1 - u, 3) : smooth(u);
+  const mix = (x: number | undefined, y: number | undefined): number => lerp(x ?? 0, y ?? 0, k);
+  p.leftArm = lerp(a.l, b.l, k);
+  p.rightArm = lerp(a.r, b.r, k);
+  p.lean = mix(a.lean, b.lean);
+  p.lift = mix(a.lift, b.lift);
+  p.turn = mix(a.turn, b.turn);
+  p.kick = mix(a.kick, b.kick);
+  p.look = { x: p.turn * 2, y: 0 };
+}
+
+const REST = { l: 14, r: -14 };
+const GUARD = { l: 130, r: -130 };
+
+/// ~6 s: ready stance, right / left punch, low block, high block, double punch, final strike with a kiai, rest.
+const KATA: readonly Key[] = [
+  { t: 0, ...REST },
+  { t: 0.5, ...GUARD, lift: 4 },
+  { t: 1.0, l: 140, r: -95, lean: 5, turn: 0.3, lift: 4, snap: true },
+  { t: 1.35, ...GUARD, lift: 4 },
+  { t: 1.6, l: 95, r: -140, lean: -5, turn: -0.3, lift: 4, snap: true },
+  { t: 1.95, ...GUARD, lift: 4 },
+  { t: 2.3, l: 130, r: -40, lean: 3, lift: 6, snap: true },
+  { t: 2.8, l: 170, r: -130, lift: 2, snap: true },
+  { t: 3.3, l: 95, r: -95, snap: true },
+  { t: 3.8, l: 95, r: -95 },
+  { t: 4.2, ...GUARD, lift: 3 },
+  { t: 4.7, l: 135, r: -92, lean: 7, turn: 0.4, lift: 3, snap: true },
+  { t: 5.3, l: 135, r: -92, lean: 7, turn: 0.4, lift: 3 },
+  { t: 6.0, ...REST },
+];
+
+/// ~2.8 s: guard, knee up, kick out and hold, re-chamber, second kick, foot down.
+const KICK: readonly Key[] = [
+  { t: 0, ...REST },
+  { t: 0.4, ...GUARD, lean: -2 },
+  { t: 0.8, ...GUARD, lean: -5, lift: -3, kick: 0.35 },
+  { t: 1.0, l: 140, r: -70, lean: -10, lift: -5, turn: 0.4, kick: 1, snap: true },
+  { t: 1.35, l: 140, r: -70, lean: -10, lift: -5, turn: 0.4, kick: 1 },
+  { t: 1.6, ...GUARD, lean: -5, lift: -3, kick: 0.35 },
+  { t: 1.9, l: 140, r: -70, lean: -11, lift: -6, turn: 0.4, kick: 1, snap: true },
+  { t: 2.2, l: 140, r: -70, lean: -11, lift: -6, turn: 0.4, kick: 1 },
+  { t: 2.5, ...GUARD, lean: -3, kick: 0.3 },
+  { t: 2.8, ...REST },
+];
+
+/// ~2.8 s: two throws to the right (wind up, snap, follow through).
+const SHURIKEN: readonly Key[] = [
+  { t: 0, ...REST },
+  { t: 0.4, l: 40, r: -60 },
+  { t: 0.75, l: 40, r: -170, lean: -3, turn: 0.3 },
+  { t: 0.9, l: 40, r: -75, lean: 6, turn: 0.5, snap: true },
+  { t: 1.3, l: 40, r: -60, turn: 0.4 },
+  { t: 1.6, l: 40, r: -170, lean: -3, turn: 0.3 },
+  { t: 1.75, l: 40, r: -75, lean: 6, turn: 0.5, snap: true },
+  { t: 2.2, l: 40, r: -75, lean: 6, turn: 0.5 },
+  { t: 2.8, ...REST },
+];
+
+/// ~5.2 s: draw, raise high, downward cut, diagonal slash, reverse slash, thrust, salute, sheathe.
+const SWORD: readonly Key[] = [
+  { t: 0, ...REST },
+  { t: 0.5, l: 100, r: -35 },
+  { t: 0.9, l: 170, r: -35, lift: 2 },
+  { t: 1.3, l: 170, r: -35, lift: 2 },
+  { t: 1.45, l: 90, r: -35, lean: 4, lift: 4, snap: true },
+  { t: 1.9, l: 90, r: -35, lean: 4, lift: 4 },
+  { t: 2.3, l: 145, r: -35 },
+  { t: 2.5, l: 100, r: -35, lean: 6, turn: 0.3, snap: true },
+  { t: 2.9, l: 160, r: -35, lean: -6, turn: -0.3, snap: true },
+  { t: 3.4, l: 92, r: -35, lean: 5, turn: 0.2, snap: true },
+  { t: 3.9, l: 92, r: -35, lean: 5, turn: 0.2 },
+  { t: 4.4, l: 170, r: -14 },
+  { t: 4.8, ...REST },
+  { t: 5.2, ...REST },
+];

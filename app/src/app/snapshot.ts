@@ -212,18 +212,12 @@ function renderInPlace(): HTMLCanvasElement {
 function renderMoves(): HTMLCanvasElement {
   type Row = { skin: SkinID; activity: Activity; times: number[] };
   const rows: Row[] = [
-    { skin: "buddy", activity: "meditate", times: [0.3, 1.5, 4] },
-    { skin: "robo", activity: "meditate", times: [0.3, 1.5, 4] },
-    { skin: "ninja", activity: "meditate", times: [0.3, 1.5, 4] },
-    { skin: "kitty", activity: "meditate", times: [0.2, 0.5, 1.5, 4] },
-    { skin: "puppy", activity: "meditate", times: [0.2, 0.5, 1.5, 4] },
-    { skin: "bunny", activity: "meditate", times: [0.2, 0.5, 1.5, 4] },
-    { skin: "ninja", activity: "kata", times: [0.25, 0.65, 1.05, 1.45] },
-    { skin: "cyberNinja", activity: "kick", times: [0.2, 0.45, 0.6, 0.9] },
-    { skin: "ninja", activity: "shuriken", times: [0.3, 0.55, 0.8, 1.1] },
-    { skin: "cyberNinja", activity: "sword", times: [0.1, 0.4, 0.7, 1.0] },
+    { skin: "ninja", activity: "kata", times: [0.5, 1.0, 1.6, 2.3, 2.8, 3.3, 4.7] },
+    { skin: "cyberNinja", activity: "kick", times: [0.4, 0.8, 1.0, 1.35, 1.6, 1.9, 2.5] },
+    { skin: "ninja", activity: "shuriken", times: [0.4, 0.75, 0.9, 1.2, 1.6, 1.75, 2.1] },
+    { skin: "cyberNinja", activity: "sword", times: [0.5, 0.9, 1.45, 2.5, 2.9, 3.4, 4.4] },
   ];
-  const cols = 4;
+  const cols = Math.max(...rows.map((r) => r.times.length));
   const [sheet, ctx] = newCanvas(CELL_W * cols, ROW_H * rows.length);
   ctx.fillStyle = "rgb(84, 84, 84)";
   ctx.fillRect(0, 0, sheet.width, sheet.height);

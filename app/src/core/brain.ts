@@ -309,13 +309,13 @@ export class Brain {
       case "meditate":
         return this.random(7, 12);
       case "kata":
-        return 3.2;
+        return 6;
       case "kick":
-        return 1.2;
+        return 2.8;
       case "shuriken":
-        return 1.4;
+        return 2.8;
       case "sword":
-        return 3;
+        return 5.2;
       case "sleep":
       case "dangle":
       case "fall":
