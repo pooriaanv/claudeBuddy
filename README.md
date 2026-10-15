@@ -37,7 +37,8 @@ English / فارسی, and one-click agent hooks.
 
 ## Install
 
-Download `ClaudeBuddy_<version>_x64-setup.exe` from Releases and run it — it installs for your user only, no admin.
+**[⬇ Download the latest release](https://github.com/pooriaanv/claudeBuddy/releases/latest)** — run `ClaudeBuddy_<version>_x64-setup.exe`; it installs for your user only, no admin, and keeps itself up to date.
+Windows may show "Windows protected your PC" (the installer isn't code-signed yet): **More info → Run anyway**.
 Then: tray icon → **Settings… → Agents → Connect** next to Claude Code (and/or Codex).
 
 Connecting adds only the buddy's entries to `~/.claude/settings.json` (a `.buddy-backup` copy is kept); your other
