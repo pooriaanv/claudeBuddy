@@ -45,6 +45,9 @@ Then: tray icon → **Settings… → Agents → Connect** next to Claude Code (
 Connecting adds only the buddy's entries to `~/.claude/settings.json` (a `.buddy-backup` copy is kept); your other
 hooks and settings are untouched. *Disconnect* removes them again.
 
+Something wrong? [Open an issue](https://github.com/pooriaanv/claudeBuddy/issues/new/choose) — it asks for the few
+details that help.
+
 Any other tool can knock too:
 
 ```bash
@@ -65,3 +68,6 @@ npm run tauri build    # → src-tauri/target/release/bundle/nsis/ClaudeBuddy_<v
 ## License
 
 [MIT](LICENSE)
+
+ClaudeBuddy is an independent fan project — not affiliated with or endorsed by Anthropic. "Claude" is a trademark of
+Anthropic.

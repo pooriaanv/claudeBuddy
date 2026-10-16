@@ -1,0 +1,57 @@
+name: Bug report
+description: Something doesn't work as it should
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead. A screenshot or short video helps a lot.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: ClaudeBuddy version
+      description: Tray icon → Settings… → Updates.
+      placeholder: "0.1.3"
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      description: Win+R → `winver`.
+      placeholder: "Windows 11 24H2"
+    validations:
+      required: true
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Which agent, and where does it run?
+      multiple: true
+      options:
+        - Claude Code in the Claude desktop app
+        - Claude Code in a terminal (Windows Terminal, PowerShell, Git Bash, …)
+        - Claude Code in VS Code / another editor
+        - Codex
+        - Something else (buddy-notify.exe)
+        - Not about agents
+  - type: dropdown
+    id: monitors
+    attributes:
+      label: Monitors
+      options:
+        - One monitor
+        - Two or more, same scaling
+        - Two or more, different scaling (e.g. 100% and 150%)
+  - type: textarea
+    id: log
+    attributes:
+      label: Debug log (optional)
+      description: |
+        Quit ClaudeBuddy from the tray icon, run this in PowerShell, reproduce the problem, quit it again from the tray
+        and attach `buddy-log.txt` from your user folder:
+        ```
+        $env:BUDDY_DEBUG=1; $env:BUDDY_DEBUG_LOG="$HOME\buddy-log.txt"; & "$env:LOCALAPPDATA\ClaudeBuddy\ClaudeBuddy.exe"
+        ```
