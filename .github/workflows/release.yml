@@ -35,6 +35,25 @@ jobs:
             exit 1
           fi
 
+      - name: Release notes from CHANGELOG.md
+        id: notes
+        shell: bash
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          notes=$(awk -v v="$v" '/^## /{f=($2==v)} f' ../CHANGELOG.md | tail -n +2)
+          if [ -z "$(echo "$notes" | tr -d '[:space:]')" ]; then
+            echo "::error::CHANGELOG.md has no '## $v' section"
+            exit 1
+          fi
+          {
+            echo 'body<<EOF_NOTES'
+            echo "$notes"
+            echo
+            echo '---'
+            echo 'Download `ClaudeBuddy_*_x64-setup.exe` below and run it (per-user install, no admin). Installed copies update themselves.'
+            echo 'EOF_NOTES'
+          } >> "$GITHUB_OUTPUT"
+
       - run: npm ci
       - run: npm test
 
@@ -48,7 +67,7 @@ jobs:
           projectPath: app
           tagName: ${{ github.ref_name }}
           releaseName: ClaudeBuddy ${{ github.ref_name }}
-          releaseBody: Download `ClaudeBuddy_*_x64-setup.exe` below and run it (per-user install, no admin). Installed copies update themselves.
+          releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: false
           includeUpdaterJson: true
           args: '--config {"bundle":{"createUpdaterArtifacts":true}}'

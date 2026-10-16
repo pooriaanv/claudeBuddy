@@ -1,9 +1,9 @@
+![ClaudeBuddy](assets/banner.png)
+
 # ClaudeBuddy for Windows
 
 A tiny desktop pet that lives on your taskbar and knocks on the glass when your AI coding agent — Claude Code,
 Codex, or anything else — is done or needs your OK.
-
-![The characters](assets/characters.png)
 
 Windows port of [ClaudeBuddy for macOS](https://github.com/pooriaanv/claudBuddy-Mac) (v0.0.9), built with Tauri v2.
 
@@ -21,8 +21,9 @@ size, just in front of every window).
 ![Knocking in place](assets/knock-in-place.png)
 
 **It has a life.** Sits, looks around, walks, dances, naps when you're away and wakes up with a yawn. Its eyes follow
-your cursor. Click for hearts; drag it around and drop it — it falls back to the floor, and if you drop it on an app
-it stays in front of that app until you use it. Every character meditates now and then; the ninjas practice kata,
+your cursor. Click for hearts; drag it around and drop it — it falls back to the floor. Drop it on an app and it
+stays in front of all your windows; drop it on the desktop and it goes back behind them. Every character meditates
+now and then; the ninjas practice kata,
 kicks, shuriken and the sword.
 
 ![Meditation and ninja moves](assets/moves.png)
@@ -37,7 +38,7 @@ English / فارسی, and one-click agent hooks.
 
 ## Install
 
-**[⬇ Download the latest release](https://github.com/pooriaanv/claudeBuddy/releases/latest)** — run `ClaudeBuddy_<version>_x64-setup.exe`; it installs for your user only, no admin, and keeps itself up to date.
+**[⬇ Download the latest release](https://github.com/pooriaanv/claudeBuddy/releases/latest)** — run `ClaudeBuddy_<version>_x64-setup.exe`; it installs for your user only, no admin, and keeps itself up to date ([what's new](CHANGELOG.md)).
 Windows may show "Windows protected your PC" (the installer isn't code-signed yet): **More info → Run anyway**.
 Then: tray icon → **Settings… → Agents → Connect** next to Claude Code (and/or Codex).
 

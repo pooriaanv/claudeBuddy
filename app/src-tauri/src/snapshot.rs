@@ -37,7 +37,7 @@ pub fn parse_args(args: &[String]) -> Option<SnapshotArgs> {
     Some(SnapshotArgs {
         out,
         lang: pick(3, &["en", "fa"], "en"),
-        mode: pick(4, &["sheet", "icon", "moves", "inplace"], "sheet"),
+        mode: pick(4, &["sheet", "icon", "moves", "inplace", "banner"], "sheet"),
         font: pick(5, &["nunito", "segoe"], "nunito"),
     })
 }

@@ -19,7 +19,7 @@ import { loadFonts } from "../render/fonts";
 import { WHITE, rgb } from "../render/paint";
 import { IN_PLACE_BUBBLE_SCALE, draw } from "../render/sceneRenderer";
 import { skinFor } from "../render/skins/catalog";
-import { drawBlockAt, measure, setFontVariant } from "../render/text";
+import { drawBlockAt, drawTextAt, measure, setFontVariant } from "../render/text";
 import type { FontVariant, TextFont } from "../render/text";
 
 interface Shot {
@@ -237,6 +237,79 @@ function renderMoves(): HTMLCanvasElement {
   return sheet;
 }
 
+/// GitHub banner / social preview (1280 x 640): title, tagline, and every character standing on a taskbar strip.
+function renderBanner(): HTMLCanvasElement {
+  const W = 1280;
+  const H = 640;
+  const [banner, ctx] = newCanvas(W, H);
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, "#34374f");
+  bg.addColorStop(1, "#1d1f2e");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+  const glow = ctx.createRadialGradient(W / 2, 120, 40, W / 2, 120, 620);
+  glow.addColorStop(0, "rgba(255, 170, 120, 0.16)");
+  glow.addColorStop(1, "rgba(255, 170, 120, 0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, W, H);
+  const barTop = H - 58;
+  ctx.fillStyle = "rgba(255, 255, 255, 0.07)";
+  ctx.fillRect(0, barTop, W, H - barTop);
+  ctx.fillStyle = "rgba(255, 255, 255, 0.12)";
+  ctx.fillRect(0, barTop, W, 1);
+
+  drawTextAt(ctx, "ClaudeBuddy", { size: 92, weight: "black" }, W / 2, 112, WHITE);
+  drawTextAt(
+    ctx,
+    "A desktop pet that knocks when your AI agent is done",
+    { size: 30, weight: "bold" },
+    W / 2,
+    186,
+    rgb(0.82, 0.83, 0.9),
+  );
+  drawTextAt(ctx, "Claude Code  ·  Codex  ·  any CLI", { size: 21, weight: "semibold" }, W / 2, 232, rgb(1, 0.68, 0.5));
+
+  const l10n = new L10n("en");
+  const b = l10n.bubble([makeWaiting("Claude", "my-app", { type: "finished" })]);
+  type Cast = { skin: SkinID; activity: Activity; e: number; edit?: (i: AnimationInput) => void; knock?: boolean };
+  const cast: Cast[] = [
+    { skin: "kitty", activity: "wave", e: 0.8 },
+    { skin: "puppy", activity: "dance", e: 0.3 },
+    { skin: "robo", activity: "sit", e: 0.3, edit: (i) => (i.heartAges = [0.45]) },
+    { skin: "buddy", activity: "sit", e: 0.3, knock: true },
+    { skin: "bunny", activity: "meditate", e: 3 },
+    { skin: "ninja", activity: "kata", e: 1.0 },
+    { skin: "cyberNinja", activity: "shuriken", e: 0.9 },
+  ];
+  const scale = 1.2;
+  const step = 176;
+  const left = W / 2 - (step * (cast.length - 1)) / 2;
+  cast.forEach((c, i) => {
+    const input = new AnimationInput(10.05 + c.e);
+    input.activity = c.activity;
+    input.activityElapsed = c.e;
+    c.edit?.(input);
+    if (c.knock === true) {
+      input.mode = "alert";
+      input.knockHits = Knocking.schedule(1.0);
+      input.alertElapsed = 1.27;
+    }
+    const scene = Animator.scene(input);
+    if (c.knock === true) {
+      scene.bubble = new Bubble(b.title, b.subtitle, false, 1);
+      scene.bubble.scale = IN_PLACE_BUBBLE_SCALE;
+      scene.knockText = l10n.t("knockWord");
+    }
+    ctx.save();
+    // Feet (cell y ~ 230 of 240) on the taskbar line.
+    ctx.translate(left + step * i - (CELL_W * scale) / 2, barTop - 228 * scale);
+    ctx.scale(scale, scale);
+    draw(ctx, { width: CELL_W, height: CELL_H }, scene, skinFor(c.skin));
+    ctx.restore();
+  });
+  return banner;
+}
+
 async function main(): Promise<void> {
   const params = new URLSearchParams(window.location.search);
   const lang: Language = params.get("lang") === "fa" ? "fa" : "en";
@@ -245,7 +318,9 @@ async function main(): Promise<void> {
   setFontVariant(variant);
   await loadFonts();
   const l10n = new L10n(lang);
-  if (mode === "inplace") {
+  if (mode === "banner") {
+    await invoke("snapshot_done", { pngBase64: pngBase64(renderBanner()), menubarBase64: null });
+  } else if (mode === "inplace") {
     await invoke("snapshot_done", { pngBase64: pngBase64(renderInPlace()), menubarBase64: null });
   } else if (mode === "moves") {
     await invoke("snapshot_done", { pngBase64: pngBase64(renderMoves()), menubarBase64: null });

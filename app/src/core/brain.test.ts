@@ -197,4 +197,14 @@ describe("WindowsExtras", () => {
       expect(counts["walk"] ?? 0).toBeGreaterThan(counts["meditate"] ?? 0);
     }
   });
+
+  it("skippedActivitiesAreNeverPicked", () => {
+    const brain = new Brain(BigInt(7));
+    let x = 800;
+    for (let now = 0; now < 1200; now += 0.05) {
+      const v = brain.tick(new BrainContext({ now, x, minX: 100, maxX: 1500, mischief: "naughty", extras, skips: ["dance"] }));
+      x = Math.min(1500, Math.max(100, x + v * 0.05));
+      expect(brain.activity).not.toBe("dance");
+    }
+  });
 });

@@ -18,8 +18,8 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 use windows::Win32::UI::Accessibility::{HWINEVENTHOOK, SetWinEventHook};
 use windows::Win32::UI::Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass};
 use windows::Win32::UI::WindowsAndMessaging::{
-    GWL_EXSTYLE, LWA_ALPHA, SetLayeredWindowAttributes, GetCursorPos, GetSystemMetrics, GetWindowLongPtrW, GetWindowRect, HWND_BOTTOM, HWND_TOP, HWND_TOPMOST,
-    EVENT_SYSTEM_FOREGROUND, GA_ROOTOWNER, GW_HWNDPREV, GetAncestor, GetWindow, HWND_NOTOPMOST, IsWindow, WS_EX_TOPMOST, GetClassNameW, GetForegroundWindow, IsIconic, WINEVENT_OUTOFCONTEXT, WINEVENT_SKIPOWNPROCESS,
+    GWL_EXSTYLE, LWA_ALPHA, SetLayeredWindowAttributes, GetCursorPos, GetSystemMetrics, GetWindowLongPtrW, GetWindowRect, HWND_BOTTOM, HWND_TOPMOST,
+    EVENT_SYSTEM_FOREGROUND, WS_EX_TOPMOST, GetClassNameW, GetForegroundWindow, IsIconic, WINEVENT_OUTOFCONTEXT, WINEVENT_SKIPOWNPROCESS,
     IsWindowVisible, MA_NOACTIVATE, SM_SWAPBUTTON, SW_SHOWNOACTIVATE, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE,
     SWP_NOSIZE, SWP_NOZORDER, SetWindowLongPtrW, SetWindowPos, ShowWindow, WINDOWPOS, WM_MOUSEACTIVATE, WM_NCDESTROY,
     WM_WINDOWPOSCHANGING, WS_EX_APPWINDOW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT,
@@ -119,14 +119,18 @@ pub enum Level {
     Desktop = 0,
     /// Knocking: above other windows (`HWND_TOPMOST`).
     Front = 1,
-    /// Windows addition (Pooria, 2026-10-15): dropped onto an app window - right above that window, until it is
-    /// activated (then back to Desktop). Our own SetWindowPos calls place it; the subclass leaves the z-order alone.
+    /// Windows addition (Pooria, 2026-10-16): idle, but dropped over an app window - in front of every app
+    /// (`HWND_TOPMOST`) until it is dropped on the desktop again.
     Above = 2,
 }
+
+/// Set by the last drop: over an app window (true) or the desktop (false). The idle ("desktop") level follows it.
+static PINNED: AtomicBool = AtomicBool::new(false);
 
 impl Level {
     pub fn parse(s: &str) -> Option<Level> {
         match s {
+            "desktop" if PINNED.load(Ordering::SeqCst) => Some(Level::Above),
             "desktop" => Some(Level::Desktop),
             "front" => Some(Level::Front),
             _ => None,
@@ -140,7 +144,7 @@ impl Level {
             Level::Desktop if DESKTOP_IN_FRONT.load(Ordering::SeqCst) => HWND_TOPMOST,
             Level::Desktop => HWND_BOTTOM,
             Level::Front => HWND_TOPMOST,
-            Level::Above => HWND_TOP,
+            Level::Above => HWND_TOPMOST,
         }
     }
 }
@@ -167,15 +171,6 @@ unsafe extern "system" fn foreground_changed(
     let desktop = is_desktop_window(hwnd);
     DESKTOP_IN_FRONT.store(desktop, Ordering::SeqCst);
     let Some(pet) = pet_hwnd() else { return };
-    if level() == Level::Above {
-        // The app it was dropped on came to the front (it now covers the pet): back to the desktop level.
-        let target = HWND(ABOVE_TARGET.load(Ordering::SeqCst) as *mut c_void);
-        let root = unsafe { GetAncestor(hwnd, GA_ROOTOWNER) };
-        if root == target || hwnd == target || !unsafe { IsWindow(Some(target)) }.as_bool() {
-            set_level(pet, Level::Desktop);
-        }
-        return;
-    }
     if level() != Level::Desktop {
         return;
     }
@@ -186,8 +181,6 @@ unsafe extern "system" fn foreground_changed(
         let _ = SetWindowPos(pet, Some(Level::Desktop.insert_after()), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
     }
 }
-
-static ABOVE_TARGET: AtomicIsize = AtomicIsize::new(0);
 
 /// The top normal app window under (x, y), skipping the pet; None over the desktop.
 fn window_under(x: i32, y: i32, pet: HWND) -> Option<HWND> {
@@ -208,33 +201,13 @@ fn window_under(x: i32, y: i32, pet: HWND) -> Option<HWND> {
     None
 }
 
-/// End of a drag (Windows addition): dropped over an app window -> just above that window (other windows that were
-/// above it stay above); over the desktop -> desktop level.
+/// End of a drag (Windows addition): dropped over an app window -> in front of every app (`Level::Above`); over the
+/// desktop or the taskbar -> back behind every window (`Level::Desktop`). Knocks return to this level afterwards.
 pub fn drop_level(pet: HWND, x: i32, y: i32) {
-    let Some(target) = window_under(x, y, pet) else {
-        crate::dev::log(&format!("drop at ({x},{y}): no app window -> desktop"));
-        set_level(pet, Level::Desktop);
-        return;
-    };
-    ABOVE_TARGET.store(target.0 as isize, Ordering::SeqCst);
-    LEVEL.store(Level::Above as u8, Ordering::SeqCst);
-    unsafe {
-        let mut prev = GetWindow(target, GW_HWNDPREV).ok();
-        while let Some(p) = prev {
-            if p != pet { break; }
-            prev = GetWindow(p, GW_HWNDPREV).ok();
-        }
-        let insert = match prev {
-            Some(p) if !p.is_invalid() && ex_style(p) & WS_EX_TOPMOST.0 == 0 => p,
-            _ => HWND_TOP,
-        };
-        let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE;
-        let _ = SetWindowPos(pet, Some(HWND_NOTOPMOST), 0, 0, 0, 0, flags);
-        let _ = SetWindowPos(pet, Some(insert), 0, 0, 0, 0, flags);
-        let mut buf = [0u16; 64];
-        let n = GetClassNameW(target, &mut buf) as usize;
-        crate::dev::log(&format!("drop at ({x},{y}) target={} prev={:?} insert_top={} pet_ex=0x{:08x}", String::from_utf16_lossy(&buf[..n]), prev.map(|p| p.0), insert == HWND_TOP, ex_style(pet)));
-    }
+    let target = window_under(x, y, pet);
+    PINNED.store(target.is_some(), Ordering::SeqCst);
+    set_level(pet, if target.is_some() { Level::Above } else { Level::Desktop });
+    crate::dev::log(&format!("drop at ({x},{y}) over app={} level={:?}", target.is_some(), level()));
 }
 
 /// Keeps the idle pet visible when the desktop comes to the front (Win+D / "show desktop"). Must run on a thread
@@ -293,7 +266,7 @@ unsafe extern "system" fn pet_subclass_proc(
             if !pos.is_null() {
                 // SAFETY: for WM_WINDOWPOSCHANGING lParam points at a WINDOWPOS owned by the system for this call.
                 unsafe {
-                    if ((*pos).flags.0 & SWP_NOZORDER.0) == 0 && level() != Level::Above {
+                    if ((*pos).flags.0 & SWP_NOZORDER.0) == 0 {
                         (*pos).hwndInsertAfter = level().insert_after();
                     }
                 }

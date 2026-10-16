@@ -20,6 +20,8 @@ export interface Skin {
   readonly usesLean: boolean;
   /// Windows addition: extra activities this character can play (meditation, ninja moves).
   readonly extras: readonly Activity[];
+  /// Windows addition: regular activities this character never picks on its own (ninjas: dance).
+  readonly skips: readonly Activity[];
   /// Windows addition: how far the body sits down onto folded legs while meditating (0 = no folded legs).
   readonly lotusDrop: number;
   /// Where the knock lands on the glass, in character space.
@@ -39,6 +41,10 @@ export abstract class SkinBase implements Skin {
   abstract readonly tone: KnockTone;
 
   get extras(): readonly Activity[] {
+    return [];
+  }
+
+  get skips(): readonly Activity[] {
     return [];
   }
 

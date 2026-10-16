@@ -1,14 +1,15 @@
 // port of Sources/ClaudeBuddy/AppIcon.swift (Mac reference v0.0.9)
 //
-// The app icon (a kitten peeking over a window ledge) and the tray face, drawn with the same skins as the pet.
-// `writeIconset` / `png` (NSImage + iconutil) have no counterpart here: the snapshot tool and the build script export
-// PNGs from these two drawing functions.
+//
+// Windows: the app icon is its own design (Pooria, 2026-10-16: "something interesting, not too cute") - a fist knocking
+// on a pane of glass. The tray face is still the selected character's face, as on the Mac.
+// `writeIconset` / `png` (NSImage + iconutil) have no counterpart here: the snapshot tool exports the PNGs and
+// `tauri icon` makes the .ico / .png set from the 1024 one.
 
 import { Pose } from "../core/pose";
 import type { SkinID } from "../core/pose";
-import { Paint, WHITE, circle, ellipse, fill, line, pt, rgb } from "./paint";
+import { WHITE, circle, fill, pt, rgb } from "./paint";
 import { skinFor } from "./skins/catalog";
-import { KittySkin } from "./skins/kitty";
 
 /// A rounded rectangle with Apple's continuous ("squircle") corners. The reference icon's tile is drawn with this curve,
 /// not with circular arcs (the curve starts 1.5287 x radius away from the corner and blends in gradually). The numbers are
@@ -43,91 +44,83 @@ function continuousRoundedRect(x: number, y: number, w: number, h: number, radiu
   return p;
 }
 
-/// Swift `AppIcon.drawIcon(_:size:)`: draws the icon in a 1024×1024 space (Apple's grid: an 824pt rounded square in
-/// the middle), scaled into a size×size area at the context's origin.
-// port of AppIcon.drawIcon
+/// The knock rings: three arcs going out from (cx, cy) to the right, each fainter than the last.
+function knockRings(ctx: CanvasRenderingContext2D, cx: number, cy: number, color: string, from: number): void {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineCap = "round";
+  [0, 1, 2].forEach((i) => {
+    ctx.globalAlpha = 1 - i * 0.28;
+    ctx.lineWidth = 30 - i * 5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, from + i * 58, -0.7, 0.7);
+    ctx.stroke();
+  });
+  ctx.restore();
+}
+
+/// Draws the icon in a 1024×1024 space (an 824 rounded square in the middle), scaled into a size×size area at the
+/// context's origin.
 export function drawIcon(ctx: CanvasRenderingContext2D, size: number): void {
   const k = size / 1024;
   ctx.save();
   ctx.scale(k, k);
   const tile = continuousRoundedRect(100, 100, 824, 824, 185);
 
-  // `shadow.addFilter(.shadow(color: black 0.28, radius: 18, x: 0, y: 12))` — canvas shadows ignore the transform,
-  // so blur and offset are scaled by hand; shadowBlur = 2 × sigma and SwiftUI's radius is the sigma.
+  // Canvas shadows ignore the transform, so blur and offset are scaled by hand.
   ctx.save();
-  ctx.shadowColor = "rgba(0, 0, 0, 0.28)";
+  ctx.shadowColor = "rgba(0, 0, 0, 0.3)";
   ctx.shadowBlur = 2 * 18 * k;
-  ctx.shadowOffsetX = 0;
   ctx.shadowOffsetY = 12 * k;
-  ctx.fillStyle = WHITE.css;
+  ctx.fillStyle = "#000";
   ctx.fill(tile);
   ctx.restore();
-
   const bg = ctx.createLinearGradient(512, 100, 512, 924);
-  bg.addColorStop(0, rgb(1.0, 0.9, 0.78).css);
-  bg.addColorStop(1, rgb(1.0, 0.72, 0.66).css);
+  bg.addColorStop(0, "#3b3f58");
+  bg.addColorStop(1, "#1c1e2b");
   ctx.fillStyle = bg;
   ctx.fill(tile);
 
-  ctx.save(); // var inside = ctx; inside.clip(to: tile)
+  ctx.save();
   ctx.clip(tile);
-  // soft sparkles
-  for (const [x, y, r] of [
-    [230.0, 250.0, 26.0],
-    [800.0, 300.0, 18.0],
-    [790.0, 640.0, 14.0],
-    [210.0, 610.0, 12.0],
-  ] as const) {
-    fill(ctx, Paint.sparkle(pt(x, y), r, r * 0.35), WHITE.opacity(0.75));
+  // the pane of glass: tinted, a bright edge, one diagonal reflection
+  const glass = ctx.createLinearGradient(300, 150, 700, 900);
+  glass.addColorStop(0, "rgba(160, 220, 255, 0.30)");
+  glass.addColorStop(1, "rgba(160, 220, 255, 0.08)");
+  ctx.fillStyle = glass;
+  ctx.fillRect(470, 100, 454, 824);
+  ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+  ctx.fillRect(466, 100, 10, 824);
+  ctx.fillStyle = "rgba(255, 255, 255, 0.18)";
+  ctx.beginPath();
+  ctx.moveTo(620, 100);
+  ctx.lineTo(700, 100);
+  ctx.lineTo(540, 924);
+  ctx.lineTo(460, 924);
+  ctx.fill();
+  knockRings(ctx, 470, 512, "#ffb38a", 110);
+  // a fist from the left: forearm, knuckles against the glass, the thumb's crease
+  ctx.fillStyle = "#ffcfa8";
+  ctx.strokeStyle = "#c9876a";
+  ctx.lineWidth = 10;
+  ctx.fillRect(100, 445, 200, 150);
+  const fist = continuousRoundedRect(240, 395, 190, 250, 80);
+  ctx.fill(fist);
+  ctx.stroke(fist);
+  for (const y of [440, 500, 560]) {
+    ctx.beginPath();
+    ctx.arc(425, y + 10, 34, -Math.PI / 2, Math.PI / 2);
+    ctx.fill();
+    ctx.stroke();
   }
-
-  const pose = new Pose();
-  pose.mouth = "smile";
-  pose.look = { x: 0, y: -0.15 };
-  const kitty = new KittySkin();
-  ctx.save(); // var head = inside
-  ctx.translate(512, 600);
-  ctx.scale(3.7, 3.7);
-  ctx.translate(-100, -146);
-  kitty.drawHead(ctx, pose, 0);
+  ctx.beginPath();
+  ctx.moveTo(300, 600);
+  ctx.quadraticCurveTo(360, 560, 400, 610);
+  ctx.stroke();
   ctx.restore();
 
-  // a window ledge to peek over, with paws hooked on it
-  const ledge = ctx.createLinearGradient(512, 790, 512, 924);
-  ledge.addColorStop(0, rgb(1.0, 0.98, 0.95).css);
-  ledge.addColorStop(1, rgb(0.98, 0.9, 0.86).css);
-  ctx.fillStyle = ledge;
-  ctx.fillRect(100, 790, 824, 140);
-  const edge = new Path2D();
-  edge.moveTo(100, 790);
-  edge.lineTo(924, 790);
-  // `inside.stroke(edge, .color(...), lineWidth: 6)`: SwiftUI's default stroke style (butt caps, miter joins)
-  ctx.strokeStyle = rgb(0.93, 0.72, 0.62).css;
+  ctx.strokeStyle = WHITE.opacity(0.12).css;
   ctx.lineWidth = 6;
-  ctx.lineCap = "butt";
-  ctx.lineJoin = "miter";
-  ctx.miterLimit = 10;
-  ctx.stroke(edge);
-  for (const x of [370, 654]) {
-    ctx.save(); // var p = inside
-    ctx.translate(x, 792);
-    ctx.scale(3.7, 3.7);
-    fill(ctx, ellipse(pt(0, 0), 34, 26), kitty.paw, kitty.furEdge, 1.6);
-    for (const dx of [-6, 6]) {
-      const toe = new Path2D();
-      toe.moveTo(dx, -12);
-      toe.lineTo(dx, -5);
-      line(ctx, toe, kitty.furEdge, 1.6);
-    }
-    ctx.restore();
-  }
-  ctx.restore(); // end of `inside`
-
-  ctx.strokeStyle = WHITE.opacity(0.35).css;
-  ctx.lineWidth = 4;
-  ctx.lineCap = "butt";
-  ctx.lineJoin = "miter";
-  ctx.miterLimit = 10;
   ctx.stroke(tile);
   ctx.restore();
 }

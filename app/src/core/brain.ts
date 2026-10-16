@@ -69,6 +69,8 @@ export interface BrainContextInit {
   mischief?: Mischief;
   /// Windows addition: extra activities the current skin can play (meditate, ninja moves). Default none.
   extras?: readonly Activity[];
+  /// Windows addition: regular activities the current skin never picks (the ninjas do not dance). Default none.
+  skips?: readonly Activity[];
 }
 
 // port of Brain.swift BrainContext
@@ -85,6 +87,7 @@ export class BrainContext {
   userIdle: number;
   mischief: Mischief;
   extras: readonly Activity[];
+  skips: readonly Activity[];
 
   constructor(init: BrainContextInit) {
     this.now = init.now;
@@ -96,6 +99,7 @@ export class BrainContext {
     this.userIdle = init.userIdle ?? 0;
     this.mischief = init.mischief ?? "playful";
     this.extras = init.extras ?? [];
+    this.skips = init.skips ?? [];
   }
 }
 
@@ -268,6 +272,7 @@ export class Brain {
       const w = EXTRA_WEIGHTS[a]?.[level] ?? 0;
       if (w > 0) table.push([a, w]);
     }
+    table = table.filter(([a]) => !c.skips.includes(a));
     let next = this.weighted(table);
     if (next === this._activity && next !== "sit") next = "sit";
     // Windows (Pooria): never two special moves in a row - a walk (a sit for Calm, which never walks) comes between.

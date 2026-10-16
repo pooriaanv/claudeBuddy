@@ -25,6 +25,11 @@ export class NinjaSkin extends SkinBase {
     return ["meditate", "kata", "kick", "shuriken", "sword"];
   }
 
+  /// Pooria, 2026-10-16: ninjas do not dance.
+  override get skips(): readonly Activity[] {
+    return ["dance"];
+  }
+
   private readonly suit: Color = rgb(0.09, 0.1, 0.13);
   private readonly suitEdge: Color = rgb(0.02, 0.02, 0.03);
   private readonly suitLight: Color = rgb(0.2, 0.22, 0.27);

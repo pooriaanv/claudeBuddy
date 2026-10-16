@@ -318,7 +318,7 @@ export class PetController implements PressHandler {
 
   dragEnded(): void {
     this.dragging = false;
-    this.platform.dropLevel(this.pointer.x, this.pointer.y); // Windows addition: stay in front of the app it was dropped on
+    this.platform.dropLevel(this.pointer.x, this.pointer.y); // Windows addition: dropped over an app -> in front of all apps; over the desktop -> behind them
     this.centerX = this.current.x + this.current.w / 2;
     this.prefs.petX = this.centerX;
     void this.prefs.flushPetX();
@@ -456,6 +456,7 @@ export class PetController implements PressHandler {
       userIdle: mouse.idleSecs,
       mischief: this.prefs.mischief,
       extras: this.skin().extras,
+      skips: this.skin().skips,
     });
     const v = this.brain.tick(ctx);
     if (v !== 0) {
