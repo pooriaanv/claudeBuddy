@@ -8,6 +8,7 @@ import { KittySkin } from "./kitty";
 import { PuppySkin } from "./puppy";
 import { RoboSkin } from "./robo";
 import { NinjaSkin } from "./ninja";
+import { ByteSkin } from "./byte";
 import { rgb } from "../paint";
 import type { Skin } from "./skin";
 
@@ -28,6 +29,8 @@ export function skinFor(id: SkinID): Skin {
       return new NinjaSkin();
     case "cyberNinja":
       return new NinjaSkin(rgb(0.2, 0.88, 1.0));
+    case "byte": // Windows addition (Pooria, 2026-10-16)
+      return new ByteSkin();
     default:
       throw new Error(`skin "${id}" is not ported yet (P2)`);
   }

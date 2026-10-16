@@ -34,6 +34,7 @@ export const L10N_KEYS = [
   "skinBunny",
   "skinNinja",
   "skinCyberNinja",
+  "skinByte",
   "mischief",
   "mischiefCalm",
   "mischiefPlayful",
@@ -95,6 +96,8 @@ export function skinNameKey(id: SkinID): L10nKey {
       return "skinNinja";
     case "cyberNinja":
       return "skinCyberNinja";
+    case "byte":
+      return "skinByte";
   }
 }
 
@@ -218,6 +221,7 @@ export class L10n {
     skinBunny: { en: "Bunny", fa: "خرگوش" },
     skinNinja: { en: "Ninja", fa: "نینجا" },
     skinCyberNinja: { en: "Cyber Ninja", fa: "نینجای سایبری" },
+    skinByte: { en: "Byte", fa: "بایت" },
     mischief: { en: "Mischief", fa: "شیطونی" },
     mischiefCalm: { en: "Calm", fa: "آروم" },
     mischiefPlayful: { en: "Playful", fa: "بازیگوش" },

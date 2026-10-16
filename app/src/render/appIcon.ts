@@ -140,14 +140,15 @@ export function drawMenuBarFace(ctx: CanvasRenderingContext2D, skinID: SkinID, b
   ctx.clip();
   const crop = 150;
   ctx.scale(sizePx / crop, sizePx / crop);
-  ctx.translate(-(100 - crop / 2), -(146 - crop / 2));
+  const f = skin.faceCenter;
+  ctx.translate(-(f.x - crop / 2), -(f.y - crop / 2));
   ctx.save(); // the renderer wraps `skin.draw` the same way
   skin.draw(ctx, pose);
   ctx.restore();
   if (badge) {
     // red "someone's waiting" dot, top-right (undo the crop transform)
     ctx.save();
-    ctx.translate(100 - crop / 2, 146 - crop / 2);
+    ctx.translate(f.x - crop / 2, f.y - crop / 2);
     const r = crop * 0.17;
     const c = pt(crop - r * 1.05, r * 1.05);
     fill(ctx, circle(c, r * 2 + crop * 0.05), WHITE);

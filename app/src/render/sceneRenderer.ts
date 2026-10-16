@@ -49,6 +49,7 @@ export function draw(ctx: CanvasRenderingContext2D, size: Size, scene: PetScene,
   if (scene.sleeping) zzz(ctx, p.t);
   if (scene.dancing) notes(ctx, p.t);
   if (scene.zen) zen(ctx, p.t);
+  if (scene.coding) codeBits(ctx, p.t);
   ctx.restore();
   if (scene.bubble !== null) drawBubble(ctx, scene.bubble);
   else if (scene.hint !== null) drawHint(ctx, scene.hint, p.t);
@@ -310,3 +311,17 @@ export class SkinPreview {
 }
 
 export const SceneRenderer = { design, draw, drawScene, drawHint, drawBubble, glassMark, hearts, zzz, notes };
+
+/// Windows addition (Pooria, 2026-10-16): little code symbols drifting up from the laptop.
+const CODE_FONT: TextFont = { size: 15, weight: "heavy", design: "rounded" };
+export function codeBits(ctx: CanvasRenderingContext2D, t: number): void {
+  const bits = ["</>", "{ }", "›_"];
+  for (let k = 0; k < 3; k++) {
+    const ph = (t * 0.45 + k / 3) % 1;
+    ctx.save();
+    ctx.globalAlpha = Math.sin(ph * Math.PI) * 0.9;
+    const side = k === 1 ? 1 : -1;
+    drawBlockAt(ctx, measure(bits[k], CODE_FONT, Infinity), 186 + side * 9 + ph * 6, 196 - ph * 80, rgb(1.0, 0.72, 0.45));
+    ctx.restore();
+  }
+}

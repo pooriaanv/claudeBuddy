@@ -13,10 +13,10 @@ export const POSTURES: readonly Posture[] = ["stand", "sit", "rear", "stretch", 
 
 /// The available characters. Each has a matching skin in `render/skins`.
 /// (Swift's `SkinID.nameKey` needs `L10nKey`; it arrives with core/localization.ts in P1.)
-export type SkinID = "buddy" | "kitty" | "puppy" | "bunny" | "robo" | "ninja" | "cyberNinja";
+export type SkinID = "buddy" | "kitty" | "puppy" | "bunny" | "robo" | "ninja" | "cyberNinja" | "byte";
 
 /// Swift `SkinID.allCases` (same order).
-export const SKIN_IDS: readonly SkinID[] = ["buddy", "kitty", "puppy", "bunny", "robo", "ninja", "cyberNinja"];
+export const SKIN_IDS: readonly SkinID[] = ["buddy", "kitty", "puppy", "bunny", "robo", "ninja", "cyberNinja", "byte"];
 
 export interface Point {
   x: number;
@@ -75,6 +75,8 @@ export class Pose {
   airborne = false;
   /// Windows addition (Pooria, 2026-10-15): 0...1 cross-legged meditation (bipeds draw folded legs).
   lotus = 0;
+  /// Windows addition (Pooria, 2026-10-16): 0...1 laptop on the lap (lid opening); skins that offer "laptop" draw it.
+  laptop = 0;
   /// Windows addition: 0...1 ninja side kick (right leg swung out).
   kick = 0;
   /// Windows addition: 0...1 flight of a thrown shuriken; -1 = none.
@@ -96,6 +98,7 @@ export class Pose {
     const mix = (a: number, b: number): number => a + (b - a) * k;
     const p = target.clone();
     p.lift = mix(this.lift, target.lift);
+    p.laptop = mix(this.laptop, target.laptop); // Windows addition: the laptop closes instead of vanishing
     p.lean = mix(this.lean, target.lean);
     p.swing = mix(this.swing, target.swing);
     p.headTilt = mix(this.headTilt, target.headTilt);
@@ -144,6 +147,8 @@ export class PetScene {
   dancing = false;
   /// Windows addition: meditation sparkles.
   zen = false;
+  /// Windows addition: code symbols floating up while working on the laptop.
+  coding = false;
   bubble: Bubble | null = null;
   /// Small, calm tag above the head: a session finished while you were looking elsewhere in its app.
   hint: string | null = null;

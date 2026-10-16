@@ -1,6 +1,7 @@
 [package]
 name = "claudebuddy"
-version = "0.1.2"
+version = "0.1.3"
+license = "MIT"
 description = "Claude Buddy - a little desktop pet that knocks when an AI agent finishes"
 authors = ["Claude Buddy contributors"]
 edition = "2024"

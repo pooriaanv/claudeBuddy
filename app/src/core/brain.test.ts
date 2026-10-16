@@ -176,7 +176,7 @@ describe("AnimatorTests", () => {
 
 // Windows additions (Pooria, 2026-10-15)
 describe("WindowsExtras", () => {
-  const extras = ["meditate", "kata", "kick", "shuriken", "sword"] as const;
+  const extras = ["meditate", "kata", "kick", "shuriken", "sword", "laptop"] as const;
   it("specialMovesNeverFollowEachOther", () => {
     for (let seed = 1; seed <= 20; seed++) {
       const brain = new Brain(BigInt(seed));
@@ -195,6 +195,7 @@ describe("WindowsExtras", () => {
         }
       }
       expect(counts["walk"] ?? 0).toBeGreaterThan(counts["meditate"] ?? 0);
+      expect(counts["laptop"] ?? 0).toBeGreaterThan(0);
     }
   });
 

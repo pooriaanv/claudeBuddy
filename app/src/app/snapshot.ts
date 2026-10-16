@@ -2,7 +2,7 @@
 //
 // Loaded by the hidden "snapshot" webview that `ClaudeBuddy.exe --snapshot <out.png> [en|fa] [mode] [fontVariant]`
 // creates (src-tauri/src/snapshot.rs): `snapshot.html?lang=en&mode=sheet&font=nunito`.
-//   mode=sheet  every skin in every pose (12 shots x 7 skins, 180x240 cells at DPR 1) + the menu-bar faces strip
+//   mode=sheet  every skin in every pose (12 shots x 8 skins, 180x240 cells at DPR 1) + the menu-bar faces strip
 //   mode=icon   the 1024x1024 app icon
 // The PNG goes back through the `snapshot_done` command (base64); Rust writes the file and exits.
 
@@ -271,20 +271,20 @@ function renderBanner(): HTMLCanvasElement {
 
   const l10n = new L10n("en");
   const b = l10n.bubble([makeWaiting("Claude", "my-app", { type: "finished" })]);
-  type Cast = { skin: SkinID; activity: Activity; e: number; edit?: (i: AnimationInput) => void; knock?: boolean };
+  // x = where each one stands; spaced by hand so the knock mark and the code symbols land on nobody
+  type Cast = { skin: SkinID; x: number; activity: Activity; e: number; edit?: (i: AnimationInput) => void; knock?: boolean };
   const cast: Cast[] = [
-    { skin: "kitty", activity: "wave", e: 0.8 },
-    { skin: "puppy", activity: "dance", e: 0.3 },
-    { skin: "robo", activity: "sit", e: 0.3, edit: (i) => (i.heartAges = [0.45]) },
-    { skin: "buddy", activity: "sit", e: 0.3, knock: true },
-    { skin: "bunny", activity: "meditate", e: 3 },
-    { skin: "ninja", activity: "kata", e: 1.0 },
-    { skin: "cyberNinja", activity: "shuriken", e: 0.9 },
+    { skin: "byte", x: 92, activity: "laptop", e: 1.5 },
+    { skin: "kitty", x: 262, activity: "wave", e: 0.8 },
+    { skin: "puppy", x: 400, activity: "dance", e: 0.3 },
+    { skin: "robo", x: 540, activity: "sit", e: 0.3, edit: (i) => (i.heartAges = [0.45]) },
+    { skin: "buddy", x: 684, activity: "sit", e: 0.3, knock: true },
+    { skin: "bunny", x: 874, activity: "meditate", e: 3 },
+    { skin: "ninja", x: 1024, activity: "kata", e: 1.0 },
+    { skin: "cyberNinja", x: 1172, activity: "shuriken", e: 0.9 },
   ];
-  const scale = 1.2;
-  const step = 176;
-  const left = W / 2 - (step * (cast.length - 1)) / 2;
-  cast.forEach((c, i) => {
+  const scale = 1.1;
+  cast.forEach((c) => {
     const input = new AnimationInput(10.05 + c.e);
     input.activity = c.activity;
     input.activityElapsed = c.e;
@@ -302,7 +302,7 @@ function renderBanner(): HTMLCanvasElement {
     }
     ctx.save();
     // Feet (cell y ~ 230 of 240) on the taskbar line.
-    ctx.translate(left + step * i - (CELL_W * scale) / 2, barTop - 228 * scale);
+    ctx.translate(c.x - (CELL_W * scale) / 2, barTop - 228 * scale);
     ctx.scale(scale, scale);
     draw(ctx, { width: CELL_W, height: CELL_H }, scene, skinFor(c.skin));
     ctx.restore();

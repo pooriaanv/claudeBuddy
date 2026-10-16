@@ -255,6 +255,8 @@ export class Animator {
       case "shuriken":
       case "sword":
         return ["stand", "sit", 0.3];
+      case "laptop":
+        return ["sit", "sit", 0.4];
     }
   }
 
@@ -355,6 +357,21 @@ export class Animator {
         s.shadow = 0.25;
         break;
       // ---- Windows additions (Pooria, 2026-10-15) ----
+      case "laptop": {
+        // holds a laptop at its side (right hand under it) and types with the left; now and then looks up, pleased
+        const q = smooth(e / 0.5);
+        p.laptop = q;
+        s.coding = q > 0.9;
+        const pause = Math.sin(t * 0.8) > 0.85;
+        p.leftArm = lerp(p.leftArm, -84 + (pause ? 6 : Math.sin(t * 16) * 3 + Math.sin(t * 23) * 1.5), q);
+        p.rightArm = lerp(p.rightArm, -35, q);
+        p.look = pause ? { x: 0, y: -0.2 } : { x: 0.8, y: 0.5 };
+        p.mouth = pause ? "smile" : "small";
+        p.mood = pause ? "happy" : "normal";
+        p.headTilt = pause ? 0 : Math.sin(t * 1.1) * 3;
+        p.breathe = 1 + Math.sin(t * 1.4) * 0.02;
+        break;
+      }
       case "meditate": {
         // cross-legged, hands on the knees, eyes closed, floating a little
         const q = smooth(e / 0.6);

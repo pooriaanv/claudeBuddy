@@ -23,7 +23,8 @@ export type Activity =
   | "kata"
   | "kick"
   | "shuriken"
-  | "sword";
+  | "sword"
+  | "laptop";
 
 /// Swift `Activity.allCases` (same order).
 export const ACTIVITIES: readonly Activity[] = [
@@ -42,6 +43,7 @@ export const ACTIVITIES: readonly Activity[] = [
   "kick",
   "shuriken",
   "sword",
+  "laptop",
 ];
 
 /// Windows additions: how often each extra activity is picked per mischief (calm, playful, naughty). 0 = never.
@@ -51,6 +53,7 @@ const EXTRA_WEIGHTS: Partial<Record<Activity, [number, number, number]>> = {
   kick: [0, 1, 1.4],
   shuriken: [0, 1, 1.4],
   sword: [0, 0.8, 1.2],
+  laptop: [0.8, 0.9, 0.9], // Pooria, 2026-10-16: the Pixel character sometimes works on a laptop
 };
 
 export type Mischief = "calm" | "playful" | "naughty";
@@ -321,6 +324,8 @@ export class Brain {
         return 2.8;
       case "sword":
         return 5.2;
+      case "laptop":
+        return this.random(6, 10);
       case "sleep":
       case "dangle":
       case "fall":

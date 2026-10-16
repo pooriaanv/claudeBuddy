@@ -20,6 +20,8 @@ export interface Skin {
   readonly usesLean: boolean;
   /// Windows addition: extra activities this character can play (meditation, ninja moves).
   readonly extras: readonly Activity[];
+  /// Windows addition: the middle of the face, for the tray icon crop (Byte's head sits lower). Default (100, 146).
+  readonly faceCenter: Point;
   /// Windows addition: regular activities this character never picks on its own (ninjas: dance).
   readonly skips: readonly Activity[];
   /// Windows addition: how far the body sits down onto folded legs while meditating (0 = no folded legs).
@@ -42,6 +44,10 @@ export abstract class SkinBase implements Skin {
 
   get extras(): readonly Activity[] {
     return [];
+  }
+
+  get faceCenter(): Point {
+    return { x: 100, y: 146 };
   }
 
   get skips(): readonly Activity[] {

@@ -24,14 +24,14 @@ size, just in front of every window).
 your cursor. Click for hearts; drag it around and drop it — it falls back to the floor. Drop it on an app and it
 stays in front of all your windows; drop it on the desktop and it goes back behind them. Every character meditates
 now and then; the ninjas practice kata,
-kicks, shuriken and the sword.
+kicks, shuriken and the sword; Byte opens a laptop and codes.
 
 ![Meditation and ninja moves](assets/moves.png)
 
 **Quiet when you're watching** (optional): if the session runs in the Claude/Codex desktop app and you're already
 looking at it, the buddy shows a small `✓ project` tag instead of knocking.
 
-**Settings** — 7 characters, size, mischief (Calm / Playful / Naughty), sound, knock style, open at login,
+**Settings** — 8 characters, size, mischief (Calm / Playful / Naughty), sound, knock style, open at login,
 English / فارسی, and one-click agent hooks.
 
 ![Settings](assets/settings.png)
@@ -61,3 +61,7 @@ npm install
 npm test
 npm run tauri build    # → src-tauri/target/release/bundle/nsis/ClaudeBuddy_<version>_x64-setup.exe
 ```
+
+## License
+
+[MIT](LICENSE)

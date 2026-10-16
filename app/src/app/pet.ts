@@ -540,6 +540,7 @@ export class PetController implements PressHandler {
       case "sit":
       case "lookAround":
       case "meditate":
+      case "laptop":
         return 12;
       case "kata":
       case "kick":

@@ -2,6 +2,12 @@
 
 Every release's notes on GitHub come from its section here (`## <version> — <date>`), so add one before tagging.
 
+## 0.1.3 — 2026-10-16
+
+- New character: **Byte**, a blocky little coder in Claude's colors. Now and then it pulls out a laptop, holds it
+  in one hand and types with the other.
+- MIT license.
+
 ## 0.1.2 — 2026-10-16
 
 - Drop the buddy on an app and it stays in front of all apps, even when you click them (before, it slipped
