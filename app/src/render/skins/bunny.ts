@@ -1,7 +1,7 @@
 // port of Sources/ClaudeBuddy/Render/Skins/BunnySkin.swift (Mac reference v0.0.9)
 
 import type { Point, Pose, Posture } from "../../core/pose";
-import { Paint, Palette, WHITE, circle, ellipse, fill, line, pt, rgb, roundedRect } from "../paint";
+import { Paint, WHITE, circle, ellipse, fill, line, pt, rgb, roundedRect } from "../paint";
 import type { Color } from "../paint";
 import { QuadrupedRig, QuadrupedSkin } from "./quadruped";
 import type { KnockTone } from "./skin";
@@ -125,6 +125,7 @@ export class BunnySkin extends QuadrupedSkin {
       fill(h, circle(pt(100 + dx + tx * 0.3, dy), r * 2), fur);
     }
     fill(h, ellipse(pt(100, 104), 60, 22), fur); // blend the tuft into the head
+    this.drawHeadband(h, tx);
 
     // big sparkly eyes
     const eyePose = p.clone();
@@ -146,19 +147,21 @@ export class BunnySkin extends QuadrupedSkin {
     fill(h, nose, pad);
     line(h, nose, pad, 2.4);
     if (p.mouth === "smile" || p.mouth === "small") {
+      // Windows (Pooria, 2026-10-17): smaller and softer - the dark ink "w" with the teeth read as a moustache
+      const lip = rgb(0.62, 0.4, 0.44);
       const w = new Path2D();
       w.moveTo(m.x, m.y + 2);
-      w.lineTo(m.x, m.y + 6);
-      w.moveTo(m.x - 7, m.y + 6);
-      w.quadraticCurveTo(m.x - 3.5, m.y + 10, m.x, m.y + 6);
-      w.quadraticCurveTo(m.x + 3.5, m.y + 10, m.x + 7, m.y + 6);
-      line(h, w, Palette.ink, 2.1);
-      const teeth = roundedRect(m.x - 4.5, m.y + 9, 9, 7, 2);
-      fill(h, teeth, WHITE, furEdge, 1.1);
+      w.lineTo(m.x, m.y + 5);
+      w.moveTo(m.x - 5, m.y + 5);
+      w.quadraticCurveTo(m.x - 2.5, m.y + 8, m.x, m.y + 5);
+      w.quadraticCurveTo(m.x + 2.5, m.y + 8, m.x + 5, m.y + 5);
+      line(h, w, lip, 1.5);
+      const teeth = roundedRect(m.x - 3, m.y + 7.5, 6, 4.5, 1.5);
+      fill(h, teeth, WHITE, furEdge.opacity(0.8), 0.8);
       const gap = new Path2D();
-      gap.moveTo(m.x, m.y + 9);
-      gap.lineTo(m.x, m.y + 16);
-      line(h, gap, furEdge, 1);
+      gap.moveTo(m.x, m.y + 7.5);
+      gap.lineTo(m.x, m.y + 12);
+      line(h, gap, furEdge.opacity(0.8), 0.7);
     } else {
       Paint.mouth(h, pt(m.x, m.y + 10), p, 13);
     }
@@ -167,6 +170,34 @@ export class BunnySkin extends QuadrupedSkin {
   private earTwitch(t: number): number {
     const local = t % 3.7;
     return local < 0.2 ? Math.sin((local / 0.2) * Math.PI) : 0;
+  }
+
+  /// Windows addition (Pooria, 2026-10-17): a pink headband over the crown, just in front of the ears and the
+  /// forehead tuft, with a bow on the right.
+  private drawHeadband(h: CanvasRenderingContext2D, tx: number): void {
+    const band = rgb(1.0, 0.5, 0.68);
+    const bandEdge = rgb(0.85, 0.33, 0.5);
+    const cx = 100 + tx * 0.3;
+    const arc = new Path2D();
+    arc.ellipse(cx, 150, 70, 56, 0, Math.PI * 1.1, Math.PI * 1.9);
+    line(h, arc, bandEdge, 12);
+    line(h, arc, band, 8.5);
+    // bow, sitting on the band at about 1 o'clock
+    const a = Math.PI * 1.72;
+    const b = pt(cx + Math.cos(a) * 70, 150 + Math.sin(a) * 56);
+    h.save();
+    h.translate(b.x, b.y);
+    h.rotate(0.5);
+    for (const side of [-1, 1]) {
+      const loop = new Path2D();
+      loop.moveTo(0, 0);
+      loop.quadraticCurveTo(side * 20, -19, side * 24, -3);
+      loop.quadraticCurveTo(side * 22, 14, 0, 0);
+      loop.closePath();
+      fill(h, loop, band, bandEdge, 1.8);
+    }
+    fill(h, circle(pt(0, -1), 11), bandEdge, bandEdge, 1.8);
+    h.restore();
   }
 
   /// Long fluffy ear; the right one has its tip folded over.

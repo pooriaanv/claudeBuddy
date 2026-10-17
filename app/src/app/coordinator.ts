@@ -38,7 +38,15 @@ export class Coordinator {
   /// Raw event files from the Rust inbox thread, oldest first. Handled strictly one after another.
   receive(texts: readonly string[]): void {
     for (const text of texts) {
-      const event = AgentAdapters.event(InboxMessage.parse(text));
+      const msg = InboxMessage.parse(text);
+      // Which hook fired, for which session/turn, from which app: enough to tell a false knock's cause from a log.
+      const p = msg.payload;
+      const s = (k: string): string => (typeof p[k] === "string" ? (p[k] as string) : "-");
+      this.debug(
+        `inbox ${msg.source} ${msg.event} hook=${s("hook_event_name")} session=${s("session_id").slice(-8)} ` +
+          `turn=${s("turn_id").slice(-8)} tool=${s("tool_name")} host=${msg.meta["host"] ?? "-"}`,
+      );
+      const event = AgentAdapters.event(msg);
       if (event !== null) this.chain = this.chain.then(() => this.handle(event)).catch(() => {});
     }
   }

@@ -2,6 +2,12 @@
 
 Every release's notes on GitHub come from its section here (`## <version> — <date>`), so add one before tagging.
 
+## 0.1.4 — 2026-10-17
+
+- Bunny: a pink headband with a bow, and a smaller, softer mouth.
+- The debug log now records which agent hook fired (event, session, turn, tool, app) - attach it to a bug report
+  when the buddy knocks for nothing.
+
 ## 0.1.3 — 2026-10-16
 
 - New character: **Byte**, a blocky little coder in Claude's colors. Now and then it pulls out a laptop, holds it
