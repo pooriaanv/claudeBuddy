@@ -91,13 +91,16 @@ impl AgentIntegration {
         format_command(helper, self.raw_value(), arg)
     }
 
-    /// `toolDetected`: Claude -> `.claude` exists; Codex -> `.codex` exists or `codex.exe` / `codex.cmd` is on PATH.
+    /// `toolDetected`: Claude -> `.claude` exists; Codex -> `.codex` exists or `codex.exe` / `codex.cmd` is on PATH
+    /// (`codex` on macOS).
     pub fn tool_detected(self, home: &Path) -> bool {
+        #[cfg(windows)]
+        const CODEX_NAMES: &[&str] = &["codex.exe", "codex.cmd"];
+        #[cfg(not(windows))]
+        const CODEX_NAMES: &[&str] = &["codex"];
         match self {
             AgentIntegration::Claude => home.join(".claude").exists(),
-            AgentIntegration::Codex => {
-                home.join(".codex").exists() || on_path(std::env::var_os("PATH"), &["codex.exe", "codex.cmd"])
-            }
+            AgentIntegration::Codex => home.join(".codex").exists() || on_path(std::env::var_os("PATH"), CODEX_NAMES),
         }
     }
 
@@ -877,6 +880,7 @@ mod tests {
         assert!(codex.tool_detected(dir.path()));
     }
 
+    #[cfg(windows)]
     #[test]
     fn codex_is_found_on_path_as_exe_or_cmd() {
         let bin = TempDir::new();
@@ -889,6 +893,17 @@ mod tests {
         fs::remove_file(bin.path().join("codex.cmd")).unwrap();
         fs::write(bin.path().join("codex.exe"), "").unwrap();
         assert!(on_path(path_var, &names));
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn codex_is_found_on_path() {
+        let bin = TempDir::new();
+        let path_var = std::env::join_paths([Path::new("/nonexistent-dir"), bin.path()]).ok();
+        assert!(!on_path(path_var.clone(), &["codex"]));
+        assert!(!on_path(None, &["codex"]));
+        fs::write(bin.path().join("codex"), "").unwrap();
+        assert!(on_path(path_var, &["codex"]));
     }
 
     // MARK: the real file (explicit run only)
