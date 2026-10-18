@@ -115,3 +115,25 @@ jobs:
           releaseDraft: false
           includeUpdaterJson: true
           args: '--target universal-apple-darwin --config {"bundle":{"createUpdaterArtifacts":true}}'
+
+      # A broken updater manifest can't be fixed for copies already installed: fail loudly unless latest.json has
+      # all three platforms, each signed, and both darwin entries point to the universal .app.tar.gz.
+      - name: Check latest.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --pattern latest.json --dir "$RUNNER_TEMP" --clobber
+          node -e '
+            const m = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+            const p = m.platforms ?? {};
+            let ok = true;
+            for (const k of ["windows-x86_64", "darwin-aarch64", "darwin-x86_64"]) {
+              const e = p[k];
+              if (!e || !e.url || !e.signature) { console.log(`::error::latest.json: ${k} missing url or signature`); ok = false; }
+            }
+            for (const k of ["darwin-aarch64", "darwin-x86_64"]) {
+              if (p[k] && !/universal.*\.app\.tar\.gz$/.test(p[k].url)) { console.log(`::error::latest.json: ${k} is not the universal .app.tar.gz (${p[k].url})`); ok = false; }
+            }
+            console.log("platforms:", Object.keys(p).join(", "));
+            if (!ok) process.exit(1);
+          ' "$RUNNER_TEMP/latest.json"
