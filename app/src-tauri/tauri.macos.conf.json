@@ -1,8 +1,13 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "bundle": {
+    "targets": ["app", "dmg"],
     "resources": {
       "resources/buddy-notify": "buddy-notify"
+    },
+    "macOS": {
+      "minimumSystemVersion": "14.0",
+      "signingIdentity": "-"
     }
   }
 }

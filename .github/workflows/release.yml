@@ -1,7 +1,9 @@
 name: Release
 
 # Push a tag like v0.1.0 (matching app/src-tauri/tauri.conf.json "version") to test, build, sign and publish the
-# Windows installer + the updater manifest (latest.json) as a GitHub release.
+# Windows installer, the macOS app (universal .dmg) and the updater manifest (latest.json) as a GitHub release.
+# The macOS job runs after the Windows one, adds its files to the same release and merges its platforms into
+# latest.json.
 on:
   push:
     tags: ['v*']
@@ -50,7 +52,11 @@ jobs:
             echo "$notes"
             echo
             echo '---'
-            echo 'Download `ClaudeBuddy_*_x64-setup.exe` below and run it (per-user install, no admin). Installed copies update themselves.'
+            echo 'Windows: download `ClaudeBuddy_*_x64-setup.exe` below and run it (per-user install, no admin).'
+            echo
+            echo 'Mac (Apple Silicon and Intel, macOS 14+): download `ClaudeBuddy_*_universal.dmg`, open it and drag ClaudeBuddy to Applications. The app is not notarized: the first time, open it, then System Settings > Privacy & Security > Open Anyway.'
+            echo
+            echo 'Installed copies update themselves.'
             echo 'EOF_NOTES'
           } >> "$GITHUB_OUTPUT"
 
@@ -71,3 +77,41 @@ jobs:
           releaseDraft: false
           includeUpdaterJson: true
           args: '--config {"bundle":{"createUpdaterArtifacts":true}}'
+
+  macos:
+    needs: windows
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - run: npm ci
+      - run: npm test
+
+      # Ad-hoc signed (bundle.macOS.signingIdentity "-", like the Swift app), not notarized. The release and its notes
+      # already exist (windows job); this adds the .dmg, the updater .app.tar.gz + .sig and the darwin entries.
+      - name: Build, sign and publish
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: app
+          tagName: ${{ github.ref_name }}
+          releaseName: ClaudeBuddy ${{ github.ref_name }}
+          releaseDraft: false
+          includeUpdaterJson: true
+          args: '--target universal-apple-darwin --config {"bundle":{"createUpdaterArtifacts":true}}'
