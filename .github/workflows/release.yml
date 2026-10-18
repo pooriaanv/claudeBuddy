@@ -3,7 +3,8 @@ name: Release
 # Push a tag like v0.1.0 (matching app/src-tauri/tauri.conf.json "version") to test, build, sign and publish the
 # Windows installer, the macOS app (universal .dmg) and the updater manifest (latest.json) as a GitHub release.
 # The macOS job runs after the Windows one, adds its files to the same release and merges its platforms into
-# latest.json.
+# latest.json. The release stays a draft (invisible to /releases/latest, so installed copies keep seeing the previous
+# one) until latest.json has been checked; only then is it published.
 on:
   push:
     tags: ['v*']
@@ -14,6 +15,8 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
+    outputs:
+      release_id: ${{ steps.tauri.outputs.releaseId }}
     defaults:
       run:
         working-directory: app
@@ -63,7 +66,8 @@ jobs:
       - run: npm ci
       - run: npm test
 
-      - name: Build, sign and publish
+      - name: Build, sign and upload (draft)
+        id: tauri
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -74,7 +78,7 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: ClaudeBuddy ${{ github.ref_name }}
           releaseBody: ${{ steps.notes.outputs.body }}
-          releaseDraft: false
+          releaseDraft: true
           includeUpdaterJson: true
           args: '--config {"bundle":{"createUpdaterArtifacts":true}}'
 
@@ -100,9 +104,10 @@ jobs:
       - run: npm ci
       - run: npm test
 
-      # Ad-hoc signed (bundle.macOS.signingIdentity "-", like the Swift app), not notarized. The release and its notes
-      # already exist (windows job); this adds the .dmg, the updater .app.tar.gz + .sig and the darwin entries.
-      - name: Build, sign and publish
+      # Ad-hoc signed (bundle.macOS.signingIdentity "-", like the Swift app), not notarized. The draft release and its
+      # notes already exist (windows job); this adds the .dmg, the updater .app.tar.gz + .sig and the darwin entries.
+      # By id: a draft is not found by its tag.
+      - name: Build, sign and upload (draft)
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -110,9 +115,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: app
-          tagName: ${{ github.ref_name }}
-          releaseName: ClaudeBuddy ${{ github.ref_name }}
-          releaseDraft: false
+          releaseId: ${{ needs.windows.outputs.release_id }}
+          releaseDraft: true
           includeUpdaterJson: true
           args: '--target universal-apple-darwin --config {"bundle":{"createUpdaterArtifacts":true}}'
 
@@ -121,8 +125,11 @@ jobs:
       - name: Check latest.json
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ needs.windows.outputs.release_id }}
         run: |
-          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --pattern latest.json --dir "$RUNNER_TEMP" --clobber
+          asset=$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets" --jq '.[] | select(.name == "latest.json") | .url')
+          if [ -z "$asset" ]; then echo "::error::the draft release has no latest.json"; exit 1; fi
+          gh api -H "Accept: application/octet-stream" "$asset" > "$RUNNER_TEMP/latest.json"
           node -e '
             const m = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
             const p = m.platforms ?? {};
@@ -137,3 +144,10 @@ jobs:
             console.log("platforms:", Object.keys(p).join(", "));
             if (!ok) process.exit(1);
           ' "$RUNNER_TEMP/latest.json"
+
+      # Only now does the release (and its latest.json) reach users.
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ needs.windows.outputs.release_id }}
+        run: gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" -F draft=false -f make_latest=true --silent
