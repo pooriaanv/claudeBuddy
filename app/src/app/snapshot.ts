@@ -167,6 +167,122 @@ function renderMenuBar(): HTMLCanvasElement {
   return strip;
 }
 
+/// Tweet image (1600 x 900): two desktops side by side - the Ninja knocking for Codex, Byte knocking for Claude.
+/// `inPlace`: the "right where it is" knock style (on the taskbar, in front of the window, bigger bubble).
+function renderTweet(inPlace: boolean): HTMLCanvasElement {
+  const W = 1600;
+  const H = 900;
+  const [img, ctx] = newCanvas(W, H);
+  const l10n = new L10n("en");
+  const rr = (x: number, y: number, w: number, h: number, r: number): Path2D => {
+    const p = new Path2D();
+    p.roundRect(x, y, w, h, r);
+    return p;
+  };
+  type Panel = { skin: SkinID; agent: string; kind: { type: "finished" } | { type: "needsPermission" }; top: string; bottom: string };
+  const panels: Panel[] = [
+    { skin: "ninja", agent: "Codex", kind: { type: "needsPermission" }, top: "#1f2a44", bottom: "#3a2f5c" },
+    { skin: "byte", agent: "Claude", kind: { type: "finished" }, top: "#3b2a2a", bottom: "#6b3b2e" },
+  ];
+  panels.forEach((pn, i) => {
+    const x0 = i * (W / 2);
+    const pw = W / 2;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x0, 0, pw, H);
+    ctx.clip();
+    // wallpaper
+    const bg = ctx.createLinearGradient(x0, 0, x0 + pw, H);
+    bg.addColorStop(0, pn.top);
+    bg.addColorStop(1, pn.bottom);
+    ctx.fillStyle = bg;
+    ctx.fillRect(x0, 0, pw, H);
+    const glow = ctx.createRadialGradient(x0 + pw * 0.7, 160, 20, x0 + pw * 0.7, 160, 520);
+    glow.addColorStop(0, "rgba(255, 255, 255, 0.10)");
+    glow.addColorStop(1, "rgba(255, 255, 255, 0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(x0, 0, pw, H);
+    // a generic code editor window (no product UI): title bar, sidebar, code lines
+    const wx = x0 + 60;
+    const wy = 70;
+    const ww = pw - 120;
+    const wh = inPlace ? 740 : 600;
+    ctx.save();
+    ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
+    ctx.shadowBlur = 40;
+    ctx.shadowOffsetY = 18;
+    ctx.fillStyle = "#1c1d24";
+    ctx.fill(rr(wx, wy, ww, wh, 14));
+    ctx.restore();
+    ctx.save();
+    ctx.clip(rr(wx, wy, ww, wh, 14));
+    ctx.fillStyle = "#26272f";
+    ctx.fillRect(wx, wy, ww, 38);
+    ["#ff6b5e", "#ffc24b", "#4fd26b"].forEach((c, k) => {
+      ctx.fillStyle = c;
+      ctx.beginPath();
+      ctx.arc(wx + 24 + k * 22, wy + 19, 6.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.fillStyle = "#202129";
+    ctx.fillRect(wx, wy + 38, 150, wh - 38);
+    for (let k = 0; k < 9; k++) {
+      ctx.fillStyle = k === 2 ? "rgba(255, 255, 255, 0.16)" : "rgba(255, 255, 255, 0.07)";
+      ctx.fillRect(wx + 18, wy + 62 + k * 30, 70 + ((k * 37) % 50), 9);
+    }
+    const colors = ["#c792ea", "#82aaff", "#c3e88d", "#f78c6c", "#89ddff", "#9aa0b4"];
+    let seed = 7 + i * 13;
+    for (let k = 0; k < 16; k++) {
+      let cx = wx + 180 + ((k * 3) % 4 === 0 ? 0 : 28) + (k % 5 === 4 ? 56 : 0);
+      for (let s = 0; s < 3; s++) {
+        seed = (seed * 9301 + 49297) % 233280;
+        const len = 30 + (seed % 90);
+        if (cx + len > wx + ww - 20) break;
+        ctx.fillStyle = colors[(seed >> 3) % colors.length];
+        ctx.globalAlpha = 0.75;
+        ctx.fillRect(cx, wy + 64 + k * 32, len, 10);
+        cx += len + 12;
+      }
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+    // taskbar
+    ctx.fillStyle = "rgba(20, 20, 26, 0.82)";
+    ctx.fillRect(x0, H - 56, pw, 56);
+    for (let k = 0; k < 6; k++) {
+      ctx.fillStyle = k === 2 ? "rgba(255, 255, 255, 0.34)" : "rgba(255, 255, 255, 0.16)";
+      ctx.fill(rr(x0 + pw / 2 - 150 + k * 52, H - 44, 32, 32, 8));
+    }
+    // the buddy knocking on the glass
+    const input = new AnimationInput(10.05);
+    input.mode = "alert";
+    input.knockHits = Knocking.schedule(1.0);
+    input.alertElapsed = 1.27;
+    const scene = Animator.scene(input);
+    const b = l10n.bubble([makeWaiting(pn.agent, "my-app", pn.kind)]);
+    scene.bubble = new Bubble(b.title, b.subtitle, false, 1);
+    scene.knockText = l10n.t("knockWord");
+    if (inPlace) {
+      // real window size (150 x 200, grown 30 % upward for the bubble), enlarged 1.7x so it reads in a tweet
+      scene.bubble.scale = IN_PLACE_BUBBLE_SCALE;
+      const k = 1.7;
+      ctx.translate(x0 + pw * 0.66 - (150 * k) / 2, H - 56 - 252 * k);
+      ctx.scale(k, k);
+      draw(ctx, { width: 150, height: 260 }, scene, skinFor(pn.skin));
+    } else {
+      const scale = 2.9;
+      ctx.translate(x0 + pw / 2 - (CELL_W * scale) / 2 + 20, H - 40 - CELL_H * scale);
+      ctx.scale(scale, scale);
+      draw(ctx, { width: CELL_W, height: CELL_H }, scene, skinFor(pn.skin));
+    }
+    ctx.restore();
+  });
+  // divider
+  ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+  ctx.fillRect(W / 2 - 2, 0, 4, H);
+  return img;
+}
+
 function renderIcon(): HTMLCanvasElement {
   const [icon, ctx] = newCanvas(1024, 1024);
   try {
@@ -318,7 +434,9 @@ async function main(): Promise<void> {
   setFontVariant(variant);
   await loadFonts();
   const l10n = new L10n(lang);
-  if (mode === "banner") {
+  if (mode === "tweet" || mode === "tweetinplace") {
+    await invoke("snapshot_done", { pngBase64: pngBase64(renderTweet(mode === "tweetinplace")), menubarBase64: null });
+  } else if (mode === "banner") {
     await invoke("snapshot_done", { pngBase64: pngBase64(renderBanner()), menubarBase64: null });
   } else if (mode === "inplace") {
     await invoke("snapshot_done", { pngBase64: pngBase64(renderInPlace()), menubarBase64: null });
