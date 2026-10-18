@@ -147,12 +147,20 @@ export class GenericAgentAdapter implements AgentAdapter {
 /// Apps that are nothing but an AI agent's UI. Being in front of one means you're looking at the agent.
 /// Terminals and editors host far more than the agent, so being in them doesn't count as watching it.
 export const AgentApps = {
-  /// Windows rules instead of Mac bundle IDs (Windows adaptation 3). Case-insensitive, `/` or `\`:
+  /// Windows rules (Windows adaptation 3), case-insensitive, `/` or `\`:
   /// - Claude desktop (MSIX): `...\WindowsApps\Claude_*\...\Claude.exe`
   /// - Claude desktop (Squirrel): `...\AnthropicClaude\app-*\claude.exe`
   /// - OpenAI apps (Codex / ChatGPT): `...\WindowsApps\OpenAI.*`
   /// The Claude Code CLI (`...\claude.exe` elsewhere), terminals and editors are not dedicated.
   isDedicated(exePath: string): boolean {
+    // macOS: the helper reports the bundle (`/Applications/Claude.app`). Swift matched the bundle IDs
+    // com.anthropic.claudefordesktop / com.openai.codex / com.openai.chat, else an app name starting with
+    // claude or codex; by name that is Claude*.app, Codex*.app and ChatGPT.app.
+    const mac = /([^/]+)\.app\/?$/i.exec(exePath);
+    if (mac !== null) {
+      const name = mac[1].toLowerCase();
+      return name.startsWith("claude") || name.startsWith("codex") || name === "chatgpt";
+    }
     const p = exePath.toLowerCase().replace(/[\\/]+/g, "\\");
     const file = p.slice(p.lastIndexOf("\\") + 1);
     return (

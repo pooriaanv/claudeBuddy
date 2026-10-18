@@ -99,6 +99,17 @@ describe("AgentEventTests", () => {
     expect(AgentApps.isDedicated("")).toBe(false);
   });
 
+  it("onlyAgentAppsCountAsWatchingOnMac", () => {
+    // Mac: the helper reports the bundle path (Swift AgentApps rules, by app name).
+    expect(AgentApps.isDedicated("/Applications/Claude.app")).toBe(true);
+    expect(AgentApps.isDedicated("/Applications/Codex.app")).toBe(true);
+    expect(AgentApps.isDedicated("/Applications/ChatGPT.app")).toBe(true);
+    expect(AgentApps.isDedicated("/Users/me/Applications/Claude Beta.app/")).toBe(true);
+    expect(AgentApps.isDedicated("/System/Applications/Utilities/Terminal.app")).toBe(false);
+    expect(AgentApps.isDedicated("/Applications/Visual Studio Code.app")).toBe(false);
+    expect(AgentApps.isDedicated("/Applications/iTerm.app")).toBe(false);
+  });
+
   it("frontmostWindowOwnerSkipsOverlaysAndTinyWindows", () => {
     const windows: WindowInfo[] = [
       { ownerPID: 1, layer: 25, width: 400, height: 400 }, // status-bar level overlay

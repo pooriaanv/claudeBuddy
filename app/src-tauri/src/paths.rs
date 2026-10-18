@@ -15,6 +15,11 @@ use std::path::{Path, PathBuf};
 /// app (D10). `Local\` = the user's logon session.
 pub const RUNNING_MUTEX_NAME: &str = "Local\\com.pooria.claudebuddy.running";
 
+/// macOS: the app holds an exclusive lock on `.claude-buddy/running.lock` while it runs; the helper tries the
+/// lock to decide whether to launch the app.
+#[cfg(not(windows))]
+pub const RUNNING_LOCK_FILE: &str = "running.lock";
+
 /// File name of the hook helper, in the app's resources and in `.claude-buddy`.
 #[cfg(windows)]
 pub const HELPER_FILE_NAME: &str = "buddy-notify.exe";
@@ -88,6 +93,11 @@ impl BuddyPaths {
 
         let staged = with_suffix(&target, ".new");
         fs::write(&staged, &data)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&staged, fs::Permissions::from_mode(0o755))?;
+        }
         let installed = fs::rename(&staged, &target).or_else(|_| {
             // Replacing failed: most likely a hook is running the current exe right now.
             fs::rename(&target, &old).and_then(|()| {

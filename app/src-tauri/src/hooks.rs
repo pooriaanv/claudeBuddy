@@ -485,6 +485,15 @@ mod tests {
     }
 
     #[test]
+    fn mac_command_is_the_plain_helper_path() {
+        let helper = Path::new("/Users/me/.claude-buddy/buddy-notify");
+        assert_eq!(ME.command(helper, "done"), "/Users/me/.claude-buddy/buddy-notify claude done");
+        let spaced = Path::new("/Users/John Smith/.claude-buddy/buddy-notify");
+        assert_eq!(ME.command(spaced, "waiting"), r#""/Users/John Smith/.claude-buddy/buddy-notify" claude waiting"#);
+        assert!(is_buddy_command("/Users/me/.claude-buddy/buddy-notify claude done"));
+    }
+
+    #[test]
     fn command_is_double_quoted_with_spaces_or_metacharacters() {
         let spaced = Path::new(r"C:\Users\John Smith\.claude-buddy\buddy-notify.exe");
         assert_eq!(

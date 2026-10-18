@@ -235,42 +235,71 @@ pub fn set_level(level: Level) {
     });
 }
 
-/// True when a normal app window (layer 0, another process, at least 80×80 pt) is under the top-left point.
-fn app_window_under(x: f64, y: f64) -> bool {
-    let own_pid = std::process::id() as i64;
+/// One on-screen window as the window server reports it (owner and bounds need no screen-recording permission).
+struct WindowInfo {
+    pid: i64,
+    layer: f64,
+    alpha: f64,
+    /// Top-left points.
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+}
+
+/// `CGWindowListCopyWindowInfo(onScreenOnly | excludeDesktopElements)`, front to back.
+fn on_screen_windows() -> Vec<WindowInfo> {
+    let mut out = Vec::new();
     unsafe {
         let list = CGWindowListCopyWindowInfo(K_CG_WINDOW_LIST_ON_SCREEN_ONLY | K_CG_WINDOW_LIST_EXCLUDE_DESKTOP, 0);
         if list.is_null() {
-            return false;
+            return out;
         }
-        let n: usize = msg_send![list, count];
-        let num = |dict: *mut AnyObject, key: &str| -> f64 {
+        let get = |dict: *mut AnyObject, key: &str| -> *mut AnyObject {
             let key = objc2_foundation::NSString::from_str(key);
-            let v: *mut AnyObject = msg_send![dict, objectForKey: &*key];
+            msg_send![dict, objectForKey: &*key]
+        };
+        let num = |dict: *mut AnyObject, key: &str| -> f64 {
+            let v = get(dict, key);
             if v.is_null() { f64::NAN } else { msg_send![v, doubleValue] }
         };
-        let mut found = false;
-        // Front to back: the first window containing the point decides.
+        let n: usize = msg_send![list, count];
         for i in 0..n {
             let info: *mut AnyObject = msg_send![list, objectAtIndex: i];
-            if num(info, "kCGWindowLayer") != 0.0 || num(info, "kCGWindowOwnerPID") as i64 == own_pid {
-                continue;
-            }
-            let key = objc2_foundation::NSString::from_str("kCGWindowBounds");
-            let b: *mut AnyObject = msg_send![info, objectForKey: &*key];
+            let b = get(info, "kCGWindowBounds");
             if b.is_null() {
                 continue;
             }
-            let (bx, by, bw, bh) = (num(b, "X"), num(b, "Y"), num(b, "Width"), num(b, "Height"));
-            if bw < 80.0 || bh < 80.0 || x < bx || y < by || x >= bx + bw || y >= by + bh {
-                continue;
-            }
-            found = true;
-            break;
+            let alpha = num(info, "kCGWindowAlpha");
+            out.push(WindowInfo {
+                pid: num(info, "kCGWindowOwnerPID") as i64,
+                layer: num(info, "kCGWindowLayer"),
+                alpha: if alpha.is_nan() { 1.0 } else { alpha },
+                x: num(b, "X"),
+                y: num(b, "Y"),
+                w: num(b, "Width"),
+                h: num(b, "Height"),
+            });
         }
         CFRelease(list as *const std::ffi::c_void);
-        found
     }
+    out
+}
+
+/// True when a normal app window (layer 0, another process, at least 80×80 pt) is under the top-left point.
+fn app_window_under(x: f64, y: f64) -> bool {
+    let own_pid = std::process::id() as i64;
+    // Front to back: the first window containing the point decides.
+    on_screen_windows().iter().any(|w| {
+        w.layer == 0.0
+            && w.pid != own_pid
+            && w.w >= 80.0
+            && w.h >= 80.0
+            && x >= w.x
+            && y >= w.y
+            && x < w.x + w.w
+            && y < w.y + w.h
+    })
 }
 
 /// End of a drag: over an app window -> `Above`; over the desktop or the Dock -> `Desktop`.
@@ -357,18 +386,71 @@ pub fn spawn_hover_thread<F: Fn(HoverPayload) + Send + 'static>(emit: F) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// Quiet when watching (M2)
+// Quiet when watching (Focus.isWatching)
 
-/// Same shape as windows' `foreground::ForegroundCheck`. Until M2 the host is never reported as watched.
+/// Same shape as windows' `foreground::ForegroundCheck`; the page combines the fields (coordinator.ts).
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ForegroundCheck {
+    /// The frontmost app is the bundle `host` (`/Applications/Claude.app`).
     pub same_exe: bool,
+    /// The frontmost app is hidden (Cmd-H).
     pub minimized: bool,
+    /// The topmost normal window on screen belongs to the frontmost app (a minimized app has none).
     pub top_owner_is_foreground: bool,
     pub idle_secs: f64,
 }
 
-pub fn foreground_check(_host: &str) -> ForegroundCheck {
-    ForegroundCheck { same_exe: false, minimized: false, top_owner_is_foreground: false, idle_secs: idle_seconds() }
+fn same_path(a: &str, b: &str) -> bool {
+    match (std::fs::canonicalize(a), std::fs::canonicalize(b)) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => a.trim_end_matches('/') == b.trim_end_matches('/'),
+    }
+}
+
+/// `ScreenWindows.frontmostOwner`: the owner of the first layer-0, visible, at least 80×80 window.
+fn frontmost_owner() -> Option<i64> {
+    on_screen_windows()
+        .into_iter()
+        .find(|w| w.layer == 0.0 && w.alpha > 0.05 && w.w >= 80.0 && w.h >= 80.0)
+        .map(|w| w.pid)
+}
+
+/// Port of `Focus.isWatching` minus the dedicated-app and idle rules, which the page applies.
+pub fn foreground_check(host: &str) -> ForegroundCheck {
+    let idle_secs = idle_seconds();
+    let none = ForegroundCheck { same_exe: false, minimized: false, top_owner_is_foreground: false, idle_secs };
+    unsafe {
+        let workspace: *mut AnyObject = msg_send![class!(NSWorkspace), sharedWorkspace];
+        let app: *mut AnyObject = msg_send![workspace, frontmostApplication];
+        if app.is_null() {
+            return none;
+        }
+        let url: *mut AnyObject = msg_send![app, bundleURL];
+        let path: *mut AnyObject = if url.is_null() { url } else { msg_send![url, path] };
+        let front = if path.is_null() { String::new() } else { (*(path as *const objc2_foundation::NSString)).to_string() };
+        let pid: i32 = msg_send![app, processIdentifier];
+        let hidden: bool = msg_send![app, isHidden];
+        let top = frontmost_owner();
+        crate::dev::log(&format!("foreground: front={front} pid={pid} hidden={hidden} top={top:?} idle={idle_secs:.1}s"));
+        ForegroundCheck {
+            same_exe: !front.is_empty() && same_path(&front, host),
+            minimized: hidden,
+            top_owner_is_foreground: top == Some(pid as i64),
+            idle_secs,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Live check against the real desktop (explicit run only): prints what the pet would see for Claude.app.
+    /// `cargo test live_foreground_check -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn live_foreground_check() {
+        println!("{:?}", foreground_check("/Applications/Claude.app"));
+    }
 }
