@@ -1,11 +1,11 @@
 ![ClaudeBuddy](assets/banner.png)
 
-# ClaudeBuddy for Windows
+# ClaudeBuddy
 
-A tiny desktop pet that lives on your taskbar and knocks on the glass when your AI coding agent — Claude Code,
-Codex, or anything else — is done or needs your OK.
+A tiny desktop pet for Windows and macOS that lives at the bottom of your screen and knocks on the glass when your
+AI coding agent — Claude Code, Codex, or anything else — is done or needs your OK.
 
-Windows port of [ClaudeBuddy for macOS](https://github.com/pooriaanv/claudBuddy-Mac) (v0.0.9), built with Tauri v2.
+Built with Tauri v2; it grew out of the original [Swift ClaudeBuddy for macOS](https://github.com/pooriaanv/claudBuddy-Mac) (v0.0.9).
 
 ## Features
 
@@ -38,9 +38,15 @@ English / فارسی, and one-click agent hooks.
 
 ## Install
 
-**[⬇ Download the latest release](https://github.com/pooriaanv/claudeBuddy/releases/latest)** — run `ClaudeBuddy_<version>_x64-setup.exe`; it installs for your user only, no admin, and keeps itself up to date ([what's new](CHANGELOG.md)).
-Windows may show "Windows protected your PC" (the installer isn't code-signed yet): **More info → Run anyway**.
-Then: tray icon → **Settings… → Agents → Connect** next to Claude Code (and/or Codex).
+**[⬇ Download the latest release](https://github.com/pooriaanv/claudeBuddy/releases/latest)** — it keeps itself up to date ([what's new](CHANGELOG.md)).
+
+- **Windows:** run `ClaudeBuddy_<version>_x64-setup.exe` (installs for your user only, no admin). Windows may show
+  "Windows protected your PC" (the installer isn't code-signed yet): **More info → Run anyway**.
+- **macOS 14+** (Apple Silicon and Intel): open `ClaudeBuddy_<version>_universal.dmg` and drag ClaudeBuddy to
+  Applications. The app isn't notarized: open it once, then **System Settings → Privacy & Security → Open Anyway**.
+  It replaces the old Swift ClaudeBuddy (same app id; the old copy is closed when the new one starts).
+
+Then: tray / menu bar icon → **Settings… → Agents → Connect** next to Claude Code (and/or Codex).
 
 Connecting adds only the buddy's entries to `~/.claude/settings.json` (a `.buddy-backup` copy is kept); your other
 hooks and settings are untouched. *Disconnect* removes them again.
@@ -51,18 +57,20 @@ details that help.
 Any other tool can knock too:
 
 ```bash
-~/.claude-buddy/buddy-notify.exe <name> done '{"project": "my-app"}'
+~/.claude-buddy/buddy-notify.exe <name> done '{"project": "my-app"}'   # Windows
+~/.claude-buddy/buddy-notify <name> done '{"project": "my-app"}'       # macOS
 ```
 
 ## Build
 
-Node 22/24 LTS, Rust (MSVC toolchain), Visual Studio 2022 Build Tools with "Desktop development with C++", WebView2.
+Node 22/24 LTS and Rust. Windows: Visual Studio 2022 Build Tools ("Desktop development with C++"), WebView2. macOS:
+Xcode Command Line Tools.
 
 ```bash
 cd app
 npm install
 npm test
-npm run tauri build    # → src-tauri/target/release/bundle/nsis/ClaudeBuddy_<version>_x64-setup.exe
+npm run tauri build    # Windows → bundle/nsis/*.exe; macOS → bundle/macos/*.app and bundle/dmg/*.dmg
 ```
 
 ## License

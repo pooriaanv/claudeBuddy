@@ -2,6 +2,15 @@
 
 Every release's notes on GitHub come from its section here (`## <version> — <date>`), so add one before tagging.
 
+## 0.2.0 — 2026-10-19
+
+- **macOS.** The same app now runs on macOS 14+ (Apple Silicon and Intel): a universal .dmg, the menu bar icon,
+  hooks for Claude Code and Codex, "quiet when watching" for the Claude and Codex apps, open at login and
+  self-update. It replaces the old Swift ClaudeBuddy, closing the old copy if it is still running.
+- Sharper on Retina screens: the pet canvas is no longer drawn in a low-resolution layer.
+- Settings: the Updates section could show up twice; fixed.
+- Releases stay a draft until every platform is uploaded and the update manifest has been checked.
+
 ## 0.1.4 — 2026-10-17
 
 - Bunny: a pink headband with a bow, and a smaller, softer mouth.
