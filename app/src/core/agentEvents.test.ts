@@ -267,4 +267,20 @@ describe("LocalizationTests", () => {
     const two = [...one, makeWaiting("Claude", "web", { type: "needsPermission" })];
     expect(new L10n("fa", []).bubble(two).title).toBe("۲ تا ایجنت منتظرتن! 👀");
   });
+
+  it("platformWording", () => {
+    const saved = L10n.platform;
+    try {
+      L10n.platform = "mac";
+      expect(new L10n("fa", []).t("launchAtLogin")).toBe("با روشن شدن مک باز شه");
+      expect(new L10n("en", []).t("toolNotFound")).toBe("not found on this Mac");
+      expect(new L10n("en", []).t("otherAgentsHint")).toContain("~/.claude-buddy/buddy-notify <name> done");
+      L10n.platform = "windows";
+      expect(new L10n("fa", []).t("launchAtLogin")).toBe("با روشن شدن ویندوز باز شه");
+      expect(new L10n("en", []).t("toolNotFound")).toBe("not found on this PC");
+      expect(new L10n("en", []).t("otherAgentsHint")).toContain("buddy-notify.exe");
+    } finally {
+      L10n.platform = saved;
+    }
+  });
 });
