@@ -114,6 +114,8 @@ mod tests {
         assert!(drain(dir.path()).is_empty());
     }
 
+    // Share-mode locks exist on Windows only.
+    #[cfg(windows)]
     #[test]
     fn drain_leaves_a_locked_file_for_the_next_round() {
         use std::os::windows::fs::OpenOptionsExt;

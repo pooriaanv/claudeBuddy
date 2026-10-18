@@ -20,6 +20,12 @@ pub fn pointer_state() -> crate::platform::windows::PointerState {
     crate::platform::windows::pointer_state()
 }
 
+#[cfg(target_os = "macos")]
+#[tauri::command]
+pub fn pointer_state() -> crate::platform::macos::PointerState {
+    crate::platform::macos::pointer_state()
+}
+
 /// One `SetWindowPos` in physical px (move + resize together; never re-orders, never activates).
 #[tauri::command]
 pub fn set_pet_frame(x: i32, y: i32, w: i32, h: i32) {
@@ -27,7 +33,9 @@ pub fn set_pet_frame(x: i32, y: i32, w: i32, h: i32) {
     if let Some(hwnd) = crate::platform::windows::pet_hwnd() {
         crate::platform::windows::set_frame(hwnd, Rect { x, y, w, h });
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
+    crate::platform::macos::set_frame(Rect { x, y, w, h });
+    #[cfg(not(any(windows, target_os = "macos")))]
     let _ = (x, y, w, h);
 }
 
@@ -39,6 +47,10 @@ pub fn drop_pet_level(x: i32, y: i32) {
     if let Some(hwnd) = crate::platform::windows::pet_hwnd() {
         crate::platform::windows::drop_level(hwnd, x, y);
     }
+    #[cfg(target_os = "macos")]
+    crate::platform::macos::drop_level(x, y);
+    #[cfg(not(any(windows, target_os = "macos")))]
+    let _ = (x, y);
 }
 
 #[tauri::command]
@@ -51,7 +63,12 @@ pub fn set_pet_level(level: String) -> Result<(), String> {
             w::set_level(hwnd, level);
         }
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
+    {
+        use crate::platform::macos as m;
+        m::set_level(m::Level::parse(&level).ok_or_else(|| format!("unknown level: {level}"))?);
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
     let _ = level;
     Ok(())
 }
@@ -63,7 +80,9 @@ pub fn set_click_through(enabled: bool) {
     if let Some(hwnd) = crate::platform::windows::pet_hwnd() {
         crate::platform::windows::set_click_through(hwnd, enabled);
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
+    crate::platform::macos::set_click_through(enabled);
+    #[cfg(not(any(windows, target_os = "macos")))]
     let _ = enabled;
 }
 
@@ -77,6 +96,13 @@ pub fn pet_ready() {
         // The window subclass already keeps the level through the show; this is the belt-and-braces re-apply.
         w::set_level(hwnd, w::level());
         dev::log(&format!("pet_ready: exstyle=0x{:08x} rect={:?} level={:?}", w::ex_style(hwnd), w::window_rect(hwnd), w::level()));
+    }
+    #[cfg(target_os = "macos")]
+    {
+        use crate::platform::macos as m;
+        m::show_no_activate();
+        m::set_level(m::level());
+        dev::log(&format!("pet_ready: level={:?}", m::level()));
     }
 }
 
@@ -114,6 +140,9 @@ pub fn create_window(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::E
         );
     #[cfg(windows)]
     let window = window.additional_browser_args(crate::BROWSER_ARGS);
+    // The pet window is never key, so the first click must reach the page (PetHostView.acceptsFirstMouse).
+    #[cfg(target_os = "macos")]
+    let window = window.accept_first_mouse(true);
     let window = window.build()?;
 
     #[cfg(windows)]
@@ -138,7 +167,20 @@ pub fn create_window(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::E
             let _ = handle.emit_to(PET_LABEL, "pet-hover", p);
         });
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
+    {
+        use crate::platform::macos as m;
+        m::register_pet(window);
+        m::apply_pet_style();
+        m::set_level(m::Level::Desktop);
+        m::set_frame(frame);
+        dev::log(&format!("pet window: frame={frame:?}"));
+        let handle = app.clone();
+        m::spawn_hover_thread(move |p| {
+            let _ = handle.emit_to(PET_LABEL, "pet-hover", p);
+        });
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
     let _ = (window, frame);
 
     screens::spawn_watcher(app.clone());

@@ -21,7 +21,8 @@ path = "src/main.rs"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon", "image-png"] }
+# macos-private-api: transparent pet window on macOS (`app.macOSPrivateApi`); compiles to nothing elsewhere.
+tauri = { version = "2", features = ["tray-icon", "image-png", "macos-private-api"] }
 tauri-plugin-autostart = "2"
 tauri-plugin-single-instance = "2"
 tauri-plugin-updater = "2"
@@ -33,6 +34,11 @@ serde_json = { version = "1", features = ["preserve_order"] }
 base64 = "0.22"
 # Prefs (12-windows-plan.md D14): prefs.json in the app data dir (com.pooria.claudebuddy), used from the page.
 tauri-plugin-store = "2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# Same versions as the ones tao/wry already pull in.
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSGeometry", "NSString"] }
 
 [target.'cfg(windows)'.dependencies]
 # Same version as the one tauri/tao/wry already pull in (see `cargo tree -i windows`), so there is one copy.

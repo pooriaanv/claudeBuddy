@@ -29,10 +29,14 @@ impl BuddyPaths {
         BuddyPaths { home: home.into() }
     }
 
-    /// The real home: `BUDDY_HOME` when set (debug builds only), else `%USERPROFILE%`.
+    /// The real home: `BUDDY_HOME` when set (debug builds only), else `%USERPROFILE%` (`$HOME` on macOS).
     pub fn current() -> Self {
         let buddy_home = if cfg!(debug_assertions) { std::env::var_os("BUDDY_HOME") } else { None };
-        Self::new(resolve_home(buddy_home, std::env::var_os("USERPROFILE")))
+        #[cfg(windows)]
+        let user_home = std::env::var_os("USERPROFILE");
+        #[cfg(not(windows))]
+        let user_home = std::env::var_os("HOME");
+        Self::new(resolve_home(buddy_home, user_home))
     }
 
     pub fn home(&self) -> &Path {

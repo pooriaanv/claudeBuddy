@@ -512,6 +512,8 @@ name = "claudebuddy"
 version = "0.1.4"
 dependencies = [
  "base64 0.22.1",
+ "objc2",
+ "objc2-foundation",
  "serde",
  "serde_json",
  "tauri",
