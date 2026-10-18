@@ -99,6 +99,17 @@ describe("AgentEventTests", () => {
     expect(AgentApps.isDedicated("")).toBe(false);
   });
 
+  it("onlyAgentAppsCountAsWatchingOnMac", () => {
+    // Mac: the helper reports the bundle path (Swift AgentApps rules, by app name).
+    expect(AgentApps.isDedicated("/Applications/Claude.app")).toBe(true);
+    expect(AgentApps.isDedicated("/Applications/Codex.app")).toBe(true);
+    expect(AgentApps.isDedicated("/Applications/ChatGPT.app")).toBe(true);
+    expect(AgentApps.isDedicated("/Users/me/Applications/Claude Beta.app/")).toBe(true);
+    expect(AgentApps.isDedicated("/System/Applications/Utilities/Terminal.app")).toBe(false);
+    expect(AgentApps.isDedicated("/Applications/Visual Studio Code.app")).toBe(false);
+    expect(AgentApps.isDedicated("/Applications/iTerm.app")).toBe(false);
+  });
+
   it("frontmostWindowOwnerSkipsOverlaysAndTinyWindows", () => {
     const windows: WindowInfo[] = [
       { ownerPID: 1, layer: 25, width: 400, height: 400 }, // status-bar level overlay
@@ -255,5 +266,21 @@ describe("LocalizationTests", () => {
     expect(new L10n("en", []).bubble(one)).toEqual({ title: "Codex is done! ✨", subtitle: "waiting for you 👀 · api" });
     const two = [...one, makeWaiting("Claude", "web", { type: "needsPermission" })];
     expect(new L10n("fa", []).bubble(two).title).toBe("۲ تا ایجنت منتظرتن! 👀");
+  });
+
+  it("platformWording", () => {
+    const saved = L10n.platform;
+    try {
+      L10n.platform = "mac";
+      expect(new L10n("fa", []).t("launchAtLogin")).toBe("با روشن شدن مک باز شه");
+      expect(new L10n("en", []).t("toolNotFound")).toBe("not found on this Mac");
+      expect(new L10n("en", []).t("otherAgentsHint")).toContain("~/.claude-buddy/buddy-notify <name> done");
+      L10n.platform = "windows";
+      expect(new L10n("fa", []).t("launchAtLogin")).toBe("با روشن شدن ویندوز باز شه");
+      expect(new L10n("en", []).t("toolNotFound")).toBe("not found on this PC");
+      expect(new L10n("en", []).t("otherAgentsHint")).toContain("buddy-notify.exe");
+    } finally {
+      L10n.platform = saved;
+    }
   });
 });

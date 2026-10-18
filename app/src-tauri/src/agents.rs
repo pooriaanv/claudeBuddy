@@ -7,8 +7,16 @@
 
 use crate::hooks::AgentIntegration;
 use crate::inbox;
-use crate::paths::{BuddyPaths, HELPER_FILE_NAME, RUNNING_MUTEX_NAME};
+use crate::paths::{BuddyPaths, HELPER_FILE_NAME};
+#[cfg(windows)]
+use crate::paths::RUNNING_MUTEX_NAME;
+#[cfg(not(windows))]
+use crate::paths::RUNNING_LOCK_FILE;
+#[cfg(windows)]
 use crate::platform::foreground::{self, ForegroundCheck};
+#[cfg(target_os = "macos")]
+use crate::platform::macos::ForegroundCheck;
+#[cfg(windows)]
 use crate::platform::windows as w;
 use serde::Serialize;
 use std::path::PathBuf;
@@ -36,6 +44,7 @@ fn bundled_helper(app: &tauri::AppHandle) -> Option<PathBuf> {
     candidates.into_iter().find(|p| p.is_file())
 }
 
+#[cfg(windows)]
 fn hold_running_mutex() {
     use windows::Win32::System::Threading::CreateMutexW;
     use windows::core::HSTRING;
@@ -45,10 +54,26 @@ fn hold_running_mutex() {
     }
 }
 
+/// macOS twin of the running mutex: an exclusive lock on `.claude-buddy/running.lock`, held (the file leaked open)
+/// for the whole process lifetime and released by the system when the process exits.
+#[cfg(not(windows))]
+fn hold_running_lock(paths: &BuddyPaths) {
+    let _ = std::fs::create_dir_all(paths.root());
+    let file = std::fs::OpenOptions::new().create(true).truncate(false).write(true).open(paths.root().join(RUNNING_LOCK_FILE));
+    if let Ok(file) = file {
+        if file.try_lock().is_ok() {
+            std::mem::forget(file);
+        }
+    }
+}
+
 /// Port of the first lines of `Coordinator.start` + `BuddyPaths.installNotifyScript`.
 pub fn start(app: &tauri::AppHandle) {
+    #[cfg(windows)]
     hold_running_mutex();
     let paths = BuddyPaths::current();
+    #[cfg(not(windows))]
+    hold_running_lock(&paths);
     let _ = std::fs::create_dir_all(paths.inbox());
     if let Some(helper) = bundled_helper(app) {
         let _ = paths.install_notify_helper(&helper);
@@ -74,8 +99,13 @@ pub fn set_active_marker(on: bool) {
 
 #[tauri::command]
 pub fn foreground_check(host: String) -> ForegroundCheck {
-    let pet = w::pet_hwnd().map(|h| h.0 as isize).unwrap_or(0);
-    foreground::foreground_check(&host, pet)
+    #[cfg(windows)]
+    {
+        let pet = w::pet_hwnd().map(|h| h.0 as isize).unwrap_or(0);
+        foreground::foreground_check(&host, pet)
+    }
+    #[cfg(target_os = "macos")]
+    crate::platform::macos::foreground_check(&host)
 }
 
 fn agent(name: &str) -> Result<AgentIntegration, String> {
@@ -124,6 +154,7 @@ pub fn cli(args: &[String]) -> Option<i32> {
     if op != "--connect" && op != "--disconnect" {
         return None;
     }
+    #[cfg(windows)]
     attach_console();
     let a = match agent(name) {
         Ok(a) => a,
@@ -147,6 +178,7 @@ pub fn cli(args: &[String]) -> Option<i32> {
     }
 }
 
+#[cfg(windows)]
 fn attach_console() {
     use windows::Win32::System::Console::{ATTACH_PARENT_PROCESS, AttachConsole};
     unsafe {

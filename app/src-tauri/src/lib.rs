@@ -36,6 +36,9 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
         .setup(move |app| {
+            // No Dock icon, never the active app (main.swift `setActivationPolicy(.accessory)`).
+            #[cfg(target_os = "macos")]
+            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             match snapshot_args {
                 // `--snapshot`: no pet window, no tray - one hidden webview that draws the sheet (D13).
                 Some(args) => snapshot::start(app.handle(), args)?,

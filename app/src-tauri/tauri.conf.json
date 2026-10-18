@@ -10,6 +10,7 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [],
     "security": {
       "csp": null
@@ -22,18 +23,7 @@
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.ico"
-    ],
-    "targets": [
-      "nsis"
-    ],
-    "resources": {
-      "resources/buddy-notify.exe": "buddy-notify.exe"
-    },
-    "windows": {
-      "nsis": {
-        "installMode": "currentUser"
-      }
-    }
+    ]
   },
   "plugins": {
     "updater": {

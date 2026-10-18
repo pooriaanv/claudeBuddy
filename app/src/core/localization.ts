@@ -108,6 +108,7 @@ function systemPreferredLanguages(): readonly string[] {
 
 /// Strings in English and Persian. `{agent}`, `{n}` and `{v}` are placeholders.
 /// Windows wording for the three strings that name the Mac or `notify.sh` (12-windows-plan.md P5; Pooria to approve).
+/// Applied on Windows only; the Mac keeps the original wording (see MAC_OVERRIDES).
 export const WINDOWS_OVERRIDES: Partial<Record<L10nKey, L10nPair>> = {
   launchAtLogin: { en: "Open at login", fa: "با روشن شدن ویندوز باز شه" },
   toolNotFound: { en: "not found on this PC", fa: "روی این کامپیوتر پیدا نشد" },
@@ -117,7 +118,22 @@ export const WINDOWS_OVERRIDES: Partial<Record<L10nKey, L10nPair>> = {
   },
 };
 
+/// Mac: the original wording, except the hint that names `notify.sh` - this app installs `buddy-notify` instead.
+export const MAC_OVERRIDES: Partial<Record<L10nKey, L10nPair>> = {
+  otherAgentsHint: {
+    en: "Any other tool can call:  ~/.claude-buddy/buddy-notify <name> done",
+    fa: "هر ابزار دیگه‌ای هم می‌تونه صدا بزنه:  ~/.claude-buddy/buddy-notify <name> done",
+  },
+};
+
+function detectPlatform(): "mac" | "windows" {
+  return typeof navigator !== "undefined" && /Mac/.test(navigator.userAgent ?? "") ? "mac" : "windows";
+}
+
 export class L10n {
+  /// Which wording overrides apply; settable for tests.
+  static platform: "mac" | "windows" = detectPlatform();
+
   /// Always "en" or "fa".
   readonly language: "en" | "fa";
 
@@ -136,8 +152,8 @@ export class L10n {
 
   /// Swift `callAsFunction(_ key:)`.
   t(key: L10nKey): string {
-    const pair =
-      WINDOWS_OVERRIDES[key] ?? (L10n.table as Partial<Record<L10nKey, L10nPair>>)[key] ?? { en: key, fa: key };
+    const overrides = L10n.platform === "mac" ? MAC_OVERRIDES : WINDOWS_OVERRIDES;
+    const pair = overrides[key] ?? (L10n.table as Partial<Record<L10nKey, L10nPair>>)[key] ?? { en: key, fa: key };
     return this.language === "fa" ? pair.fa : pair.en;
   }
 

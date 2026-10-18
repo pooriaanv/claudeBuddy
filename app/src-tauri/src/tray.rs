@@ -98,16 +98,16 @@ pub fn open_settings_tab(app: tauri::AppHandle, title: String, tab: Option<u8>) 
         .map(|m| m.work_area().size.height as f64 / m.scale_factor())
         .unwrap_or(800.0);
     let h = (work_h - 120.0).clamp(300.0, 440.0);
-    WebviewWindowBuilder::new(&app, "settings", WebviewUrl::App(match tab { Some(t) => format!("settings.html?tab={t}").into(), None => "settings.html".into() }))
+    let builder = WebviewWindowBuilder::new(&app, "settings", WebviewUrl::App(match tab { Some(t) => format!("settings.html?tab={t}").into(), None => "settings.html".into() }))
         .title(title)
         .inner_size(520.0, h)
         .min_inner_size(440.0, 300.0)
         .resizable(true)
         .center()
-        .focused(true)
-        .additional_browser_args(crate::BROWSER_ARGS)
-        .build()
-        .map_err(|e| e.to_string())?;
+        .focused(true);
+    #[cfg(windows)]
+    let builder = builder.additional_browser_args(crate::BROWSER_ARGS);
+    builder.build().map_err(|e| e.to_string())?;
     Ok(())
 }
 

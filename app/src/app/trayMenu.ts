@@ -5,6 +5,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Waiting } from "../core/attention";
 import { drawMenuBarFace } from "../render/appIcon";
+import { L10n } from "../core/localization";
 import type { Preferences } from "./prefs";
 
 interface TrayItem {
@@ -15,9 +16,10 @@ interface TrayItem {
   checked?: boolean;
 }
 
-/// Tray face at 32 px (Windows scales it to the tray size), badge dot when someone is waiting.
+/// Tray face at 32 px (Windows scales it to the tray size), badge dot when someone is waiting. Mac: 36 px, the
+/// menu bar's 18 pt at 2x (Swift `menuBarImage`).
 function facePng(prefs: Preferences, badge: boolean): string {
-  const size = 32;
+  const size = L10n.platform === "mac" ? 36 : 32;
   const c = document.createElement("canvas");
   c.width = size;
   c.height = size;

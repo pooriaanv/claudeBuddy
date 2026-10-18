@@ -15,8 +15,16 @@ use std::path::{Path, PathBuf};
 /// app (D10). `Local\` = the user's logon session.
 pub const RUNNING_MUTEX_NAME: &str = "Local\\com.pooria.claudebuddy.running";
 
+/// macOS: the app holds an exclusive lock on `.claude-buddy/running.lock` while it runs; the helper tries the
+/// lock to decide whether to launch the app.
+#[cfg(not(windows))]
+pub const RUNNING_LOCK_FILE: &str = "running.lock";
+
 /// File name of the hook helper, in the app's resources and in `.claude-buddy`.
+#[cfg(windows)]
 pub const HELPER_FILE_NAME: &str = "buddy-notify.exe";
+#[cfg(not(windows))]
+pub const HELPER_FILE_NAME: &str = "buddy-notify";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BuddyPaths {
@@ -29,10 +37,14 @@ impl BuddyPaths {
         BuddyPaths { home: home.into() }
     }
 
-    /// The real home: `BUDDY_HOME` when set (debug builds only), else `%USERPROFILE%`.
+    /// The real home: `BUDDY_HOME` when set (debug builds only), else `%USERPROFILE%` (`$HOME` on macOS).
     pub fn current() -> Self {
         let buddy_home = if cfg!(debug_assertions) { std::env::var_os("BUDDY_HOME") } else { None };
-        Self::new(resolve_home(buddy_home, std::env::var_os("USERPROFILE")))
+        #[cfg(windows)]
+        let user_home = std::env::var_os("USERPROFILE");
+        #[cfg(not(windows))]
+        let user_home = std::env::var_os("HOME");
+        Self::new(resolve_home(buddy_home, user_home))
     }
 
     pub fn home(&self) -> &Path {
@@ -81,6 +93,11 @@ impl BuddyPaths {
 
         let staged = with_suffix(&target, ".new");
         fs::write(&staged, &data)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&staged, fs::Permissions::from_mode(0o755))?;
+        }
         let installed = fs::rename(&staged, &target).or_else(|_| {
             // Replacing failed: most likely a hook is running the current exe right now.
             fs::rename(&target, &old).and_then(|()| {
@@ -189,6 +206,7 @@ mod tests {
         BuddyPaths::new(dir.path())
     }
 
+    #[cfg(windows)]
     #[test]
     fn layout_hangs_off_the_home_dir() {
         let p = BuddyPaths::new(r"C:\Users\me");
@@ -247,7 +265,7 @@ mod tests {
         assert!(p.install_notify_helper(&bundled).unwrap(), "different bytes: replaced");
         assert_eq!(fs::read(p.helper()).unwrap(), b"v2");
         let leftovers: Vec<_> = fs::read_dir(p.root()).unwrap().flatten().map(|e| e.file_name()).collect();
-        assert_eq!(leftovers, vec![OsString::from("buddy-notify.exe")]);
+        assert_eq!(leftovers, vec![OsString::from(HELPER_FILE_NAME)]);
     }
 
     #[test]
@@ -258,7 +276,20 @@ mod tests {
         assert!(!p.root().exists());
     }
 
-    /// The case the rename dance exists for: the installed exe is running (a hook is in flight).
+    #[cfg(not(windows))]
+    #[test]
+    fn layout_hangs_off_the_home_dir() {
+        let p = BuddyPaths::new("/Users/me");
+        assert_eq!(p.root(), PathBuf::from("/Users/me/.claude-buddy"));
+        assert_eq!(p.inbox(), PathBuf::from("/Users/me/.claude-buddy/inbox"));
+        assert_eq!(p.active_marker(), PathBuf::from("/Users/me/.claude-buddy/active"));
+        assert_eq!(p.app_path_file(), PathBuf::from("/Users/me/.claude-buddy/app-path"));
+        assert_eq!(p.helper(), PathBuf::from("/Users/me/.claude-buddy/buddy-notify"));
+    }
+
+    /// The case the rename dance exists for: the installed exe is running (a hook is in flight). Windows only: other
+    /// systems replace the file of a running program without complaint.
+    #[cfg(windows)]
     #[test]
     fn helper_in_use_is_replaced_by_renaming() {
         use std::process::{Command, Stdio};

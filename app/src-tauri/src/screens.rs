@@ -78,6 +78,8 @@ pub fn spawn_watcher(app: tauri::AppHandle) {
         loop {
             if let Ok(list) = collect(&app) {
                 if watcher.update(list) {
+                    #[cfg(target_os = "macos")]
+                    crate::platform::macos::screens_changed();
                     let _ = app.emit("screens-changed", ());
                 }
             }

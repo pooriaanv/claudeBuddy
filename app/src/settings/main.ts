@@ -24,6 +24,9 @@ let tab = 0;
 type UpdateInfo = { state: UpdateState; current: string };
 let updateInfo: UpdateInfo | null = null;
 let previews: SkinPreview[] = [];
+/// Renders overlap (the update-state event re-renders while the first render awaits): each one builds off-screen and
+/// only the latest swaps its content in, so a section is never appended twice.
+let renderGen = 0;
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = "", text = ""): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -65,6 +68,7 @@ function button(label: string, action: () => void, cls = "push"): HTMLButtonElem
 }
 
 async function render(prefs: Preferences): Promise<void> {
+  const gen = ++renderGen;
   const l = prefs.l10n;
   const t = (k: L10nKey): string => l.t(k);
   document.documentElement.dir = l.isRTL ? "rtl" : "ltr";
@@ -79,8 +83,8 @@ async function render(prefs: Preferences): Promise<void> {
   });
 
   const main = document.getElementById("content")!;
-  main.replaceChildren();
-  const section = (): HTMLDivElement => main.appendChild(el("div", "section"));
+  const staging = el("div", "");
+  const section = (): HTMLDivElement => staging.appendChild(el("div", "section"));
 
   if (tab === 0) {
     // characterTab
@@ -131,7 +135,7 @@ async function render(prefs: Preferences): Promise<void> {
         void (v ? enable() : disable()).catch((e) => alert(String(e)));
       })),
     );
-    main.append(el("div", "section-title", t("sectionLanguage")));
+    staging.append(el("div", "section-title", t("sectionLanguage")));
     section().append(row(segmented<Language>(
       [["system", t("languageSystem")], ["en", "English"], ["fa", "فارسی"]],
       prefs.language, (v) => { prefs.language = v; void render(prefs); }, "seg wide")));
@@ -173,6 +177,7 @@ async function render(prefs: Preferences): Promise<void> {
     if (st.kind === "checking" || st.kind === "installing") action.disabled = true;
     section().append(row(label, action), row(t("updatesAuto"), toggle(prefs.autoUpdate, (on) => { prefs.autoUpdate = on; })));
   }
+  if (gen === renderGen) main.replaceChildren(...staging.childNodes);
 }
 
 async function main(): Promise<void> {

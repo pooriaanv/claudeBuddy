@@ -1,7 +1,10 @@
 name: Release
 
 # Push a tag like v0.1.0 (matching app/src-tauri/tauri.conf.json "version") to test, build, sign and publish the
-# Windows installer + the updater manifest (latest.json) as a GitHub release.
+# Windows installer, the macOS app (universal .dmg) and the updater manifest (latest.json) as a GitHub release.
+# The macOS job runs after the Windows one, adds its files to the same release and merges its platforms into
+# latest.json. The release stays a draft (invisible to /releases/latest, so installed copies keep seeing the previous
+# one) until latest.json has been checked; only then is it published.
 on:
   push:
     tags: ['v*']
@@ -12,6 +15,8 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
+    outputs:
+      release_id: ${{ steps.tauri.outputs.releaseId }}
     defaults:
       run:
         working-directory: app
@@ -50,14 +55,19 @@ jobs:
             echo "$notes"
             echo
             echo '---'
-            echo 'Download `ClaudeBuddy_*_x64-setup.exe` below and run it (per-user install, no admin). Installed copies update themselves.'
+            echo 'Windows: download `ClaudeBuddy_*_x64-setup.exe` below and run it (per-user install, no admin).'
+            echo
+            echo 'Mac (Apple Silicon and Intel, macOS 14+): download `ClaudeBuddy_*_universal.dmg`, open it and drag ClaudeBuddy to Applications. The app is not notarized: the first time, open it, then System Settings > Privacy & Security > Open Anyway.'
+            echo
+            echo 'Installed copies update themselves.'
             echo 'EOF_NOTES'
           } >> "$GITHUB_OUTPUT"
 
       - run: npm ci
       - run: npm test
 
-      - name: Build, sign and publish
+      - name: Build, sign and upload (draft)
+        id: tauri
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -68,6 +78,76 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: ClaudeBuddy ${{ github.ref_name }}
           releaseBody: ${{ steps.notes.outputs.body }}
-          releaseDraft: false
+          releaseDraft: true
           includeUpdaterJson: true
           args: '--config {"bundle":{"createUpdaterArtifacts":true}}'
+
+  macos:
+    needs: windows
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - run: npm ci
+      - run: npm test
+
+      # Ad-hoc signed (bundle.macOS.signingIdentity "-", like the Swift app), not notarized. The draft release and its
+      # notes already exist (windows job); this adds the .dmg, the updater .app.tar.gz + .sig and the darwin entries.
+      # By id: a draft is not found by its tag.
+      - name: Build, sign and upload (draft)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: app
+          releaseId: ${{ needs.windows.outputs.release_id }}
+          releaseDraft: true
+          includeUpdaterJson: true
+          args: '--target universal-apple-darwin --config {"bundle":{"createUpdaterArtifacts":true}}'
+
+      # A broken updater manifest can't be fixed for copies already installed: fail loudly unless latest.json has
+      # all three platforms, each signed, and both darwin entries point to the universal .app.tar.gz.
+      - name: Check latest.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ needs.windows.outputs.release_id }}
+        run: |
+          asset=$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets" --jq '.[] | select(.name == "latest.json") | .url')
+          if [ -z "$asset" ]; then echo "::error::the draft release has no latest.json"; exit 1; fi
+          gh api -H "Accept: application/octet-stream" "$asset" > "$RUNNER_TEMP/latest.json"
+          node -e '
+            const m = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+            const p = m.platforms ?? {};
+            let ok = true;
+            for (const k of ["windows-x86_64", "darwin-aarch64", "darwin-x86_64"]) {
+              const e = p[k];
+              if (!e || !e.url || !e.signature) { console.log(`::error::latest.json: ${k} missing url or signature`); ok = false; }
+            }
+            for (const k of ["darwin-aarch64", "darwin-x86_64"]) {
+              if (p[k] && !/universal.*\.app\.tar\.gz$/.test(p[k].url)) { console.log(`::error::latest.json: ${k} is not the universal .app.tar.gz (${p[k].url})`); ok = false; }
+            }
+            console.log("platforms:", Object.keys(p).join(", "));
+            if (!ok) process.exit(1);
+          ' "$RUNNER_TEMP/latest.json"
+
+      # Only now does the release (and its latest.json) reach users.
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ needs.windows.outputs.release_id }}
+        run: gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" -F draft=false -f make_latest=true --silent
