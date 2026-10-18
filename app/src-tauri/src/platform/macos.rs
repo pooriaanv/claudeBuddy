@@ -56,6 +56,32 @@ fn with_ns_window(f: impl FnOnce(*mut AnyObject) + Send + 'static) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
+// Upgrade from the Swift app
+
+/// The Swift app (0.0.9) has the same bundle id, and its login item (`open -g -b <id>`) can still start it next to
+/// us: two pets. Single instance only knows copies of this app, so politely quit (`terminate`, never force) every
+/// other running app with our bundle id. Another copy of this app never gets here (single instance exits it first).
+pub fn quit_other_copies(bundle_id: &str) {
+    let own = std::process::id() as i32;
+    unsafe {
+        let id = objc2_foundation::NSString::from_str(bundle_id);
+        let apps: *mut AnyObject = msg_send![class!(NSRunningApplication), runningApplicationsWithBundleIdentifier: &*id];
+        if apps.is_null() {
+            return;
+        }
+        let n: usize = msg_send![apps, count];
+        for i in 0..n {
+            let app: *mut AnyObject = msg_send![apps, objectAtIndex: i];
+            let pid: i32 = msg_send![app, processIdentifier];
+            if pid != own {
+                let asked: bool = msg_send![app, terminate];
+                crate::dev::log(&format!("another {bundle_id} was running (pid {pid}): asked to quit = {asked}"));
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------------------------------------------
 // Screens
 
 #[derive(Clone, Copy, Debug)]

@@ -170,6 +170,7 @@ pub fn create_window(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::E
     #[cfg(target_os = "macos")]
     {
         use crate::platform::macos as m;
+        m::quit_other_copies(&app.config().identifier);
         m::register_pet(window);
         m::apply_pet_style();
         m::set_level(m::Level::Desktop);
