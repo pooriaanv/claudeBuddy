@@ -1,6 +1,6 @@
 // Builds the hook helper (app/notify, own crate) and copies it into src-tauri/resources for bundling (D10).
 // macOS universal builds (`tauri build --target universal-apple-darwin`) get a universal helper: both
-// architectures, joined with lipo.
+// architectures, joined with lipo. Another explicit macOS target builds the helper for that target.
 import { execFileSync } from "node:child_process";
 import { copyFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -23,6 +23,10 @@ if (universal) {
   execFileSync("lipo", ["-create", "-output", out, ...triples.map((t) => join(target, t, "release", exe))], {
     stdio: "inherit",
   });
+} else if (process.env.TAURI_ENV_TARGET_TRIPLE?.endsWith("-apple-darwin")) {
+  const t = process.env.TAURI_ENV_TARGET_TRIPLE;
+  cargo("--target", t);
+  copyFileSync(join(target, t, "release", exe), out);
 } else {
   cargo();
   copyFileSync(join(target, "release", exe), out);

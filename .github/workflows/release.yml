@@ -1,7 +1,7 @@
 name: Release
 
 # Push a tag like v0.1.0 (matching app/src-tauri/tauri.conf.json "version") to test, build, sign and publish the
-# Windows installer, the macOS app (universal .dmg) and the updater manifest (latest.json) as a GitHub release.
+# Windows installer, the macOS app (universal .dmg, plus a smaller Apple Silicon-only .dmg) and the updater manifest (latest.json) as a GitHub release.
 # The macOS job runs after the Windows one, adds its files to the same release and merges its platforms into
 # latest.json. The release stays a draft (invisible to /releases/latest, so installed copies keep seeing the previous
 # one) until latest.json has been checked; only then is it published.
@@ -57,7 +57,7 @@ jobs:
             echo '---'
             echo 'Windows: download `ClaudeBuddy_*_x64-setup.exe` below and run it (per-user install, no admin).'
             echo
-            echo 'Mac (Apple Silicon and Intel, macOS 14+): download `ClaudeBuddy_*_universal.dmg`, open it and drag ClaudeBuddy to Applications. The app is not notarized: the first time, open it, then System Settings > Privacy & Security > Open Anyway.'
+            echo 'Mac (macOS 14+): download `ClaudeBuddy_*_universal.dmg` (Apple Silicon and Intel) or the smaller `ClaudeBuddy_*_aarch64.dmg` (Apple Silicon only), open it and drag ClaudeBuddy to Applications. The app is not notarized: the first time, open it, then System Settings > Privacy & Security > Open Anyway.'
             echo
             echo 'Installed copies update themselves.'
             echo 'EOF_NOTES'
@@ -119,6 +119,19 @@ jobs:
           releaseDraft: true
           includeUpdaterJson: true
           args: '--target universal-apple-darwin --config {"bundle":{"createUpdaterArtifacts":true}}'
+
+      # A smaller download for Apple Silicon: the .dmg only. No updater artifacts and latest.json untouched - installed
+      # copies (either .dmg) update from the universal .app.tar.gz.
+      - name: Build and upload the Apple Silicon .dmg (draft)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: app
+          releaseId: ${{ needs.windows.outputs.release_id }}
+          releaseDraft: true
+          includeUpdaterJson: false
+          args: '--target aarch64-apple-darwin --bundles dmg'
 
       # A broken updater manifest can't be fixed for copies already installed: fail loudly unless latest.json has
       # all three platforms, each signed, and both darwin entries point to the universal .app.tar.gz.
