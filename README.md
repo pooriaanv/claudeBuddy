@@ -42,8 +42,8 @@ English / فارسی, and one-click agent hooks.
 
 - **Windows:** run `ClaudeBuddy_<version>_x64-setup.exe` (installs for your user only, no admin). Windows may show
   "Windows protected your PC" (the installer isn't code-signed yet): **More info → Run anyway**.
-- **macOS 14+** (Apple Silicon and Intel): open `ClaudeBuddy_<version>_universal.dmg` and drag ClaudeBuddy to
-  Applications. The app isn't notarized: open it once, then **System Settings → Privacy & Security → Open Anyway**.
+- **macOS 14+**: open `ClaudeBuddy_<version>_universal.dmg` (Apple Silicon and Intel) or the smaller
+  `ClaudeBuddy_<version>_aarch64.dmg` (Apple Silicon only) and drag ClaudeBuddy to Applications. The app isn't notarized: open it once, then **System Settings → Privacy & Security → Open Anyway**.
   It replaces the old Swift ClaudeBuddy (same app id; the old copy is closed when the new one starts).
 
 Then: tray / menu bar icon → **Settings… → Agents → Connect** next to Claude Code (and/or Codex).
