@@ -15,7 +15,7 @@ jobs:
   downloads:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: badges
       - name: Count installer downloads

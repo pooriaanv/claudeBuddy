@@ -31,13 +31,13 @@ serde = { version = "1", features = ["derive"] }
 # preserve_order: hooks.rs keeps the key order of the user's settings.json (12-windows-plan.md D11, Q4).
 serde_json = { version = "1", features = ["preserve_order"] }
 # Already in the dependency tree (tauri); used by the --snapshot command to decode the PNG the page sends back.
-base64 = "0.22"
+base64 = "0.23"
 # Prefs (12-windows-plan.md D14): prefs.json in the app data dir (com.pooria.claudebuddy), used from the page.
 tauri-plugin-store = "2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # X11 queries for the pet (cursor, idle time, stacking order, active window): platform/linux.rs.
-x11rb = { version = "0.13", features = ["screensaver"] }
+x11rb = { version = "0.14", features = ["screensaver"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 # Same versions as the ones tao/wry already pull in.
