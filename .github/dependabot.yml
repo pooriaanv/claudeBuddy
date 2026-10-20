@@ -23,6 +23,11 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # tauri-action v1 changes how the release is published (renamed inputs; latest.json download URLs become
+    # rate-limited api.github.com asset URLs). Migrate on purpose, with a test release, then remove this rule.
+    ignore:
+      - dependency-name: tauri-apps/tauri-action
+        update-types: ['version-update:semver-major']
     groups:
       actions:
         patterns: ['*']
