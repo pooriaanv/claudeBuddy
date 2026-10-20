@@ -25,7 +25,7 @@ jobs:
       matrix:
         language: [javascript-typescript, rust, actions]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # No build needed: CodeQL reads the sources directly for all three.
       - uses: github/codeql-action/init@v4
