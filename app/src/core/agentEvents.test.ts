@@ -279,6 +279,10 @@ describe("LocalizationTests", () => {
       expect(new L10n("fa", []).t("launchAtLogin")).toBe("با روشن شدن ویندوز باز شه");
       expect(new L10n("en", []).t("toolNotFound")).toBe("not found on this PC");
       expect(new L10n("en", []).t("otherAgentsHint")).toContain("buddy-notify.exe");
+      L10n.platform = "linux";
+      expect(new L10n("fa", []).t("launchAtLogin")).toBe("با روشن شدن سیستم باز شه");
+      expect(new L10n("en", []).t("toolNotFound")).toBe("not found on this computer");
+      expect(new L10n("en", []).t("otherAgentsHint")).toContain("~/.claude-buddy/buddy-notify <name> done");
     } finally {
       L10n.platform = saved;
     }
