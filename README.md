@@ -10,7 +10,7 @@
 [![Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fpooriaanv%2FclaudeBuddy%2Fbadges%2Ftests.json)](https://github.com/pooriaanv/claudeBuddy/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fpooriaanv%2FclaudeBuddy%2Fbadges%2Fcoverage.json)](#testing)
 [![Release](https://img.shields.io/github/v/release/pooriaanv/claudeBuddy?color=orange)](https://github.com/pooriaanv/claudeBuddy/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/pooriaanv/claudeBuddy/total?color=blue)](https://github.com/pooriaanv/claudeBuddy/releases)
+[![Downloads](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fpooriaanv%2FclaudeBuddy%2Fbadges%2Fdownloads.json)](https://github.com/pooriaanv/claudeBuddy/releases)
 <br>
 ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white)
 ![macOS](https://img.shields.io/badge/macOS-14%2B-000000?logo=apple&logoColor=white)

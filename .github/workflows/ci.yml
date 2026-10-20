@@ -97,9 +97,13 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout --orphan badges
-          git rm -rfq .
+          # Keep the other badges on the branch (downloads.json comes from downloads.yml).
+          if git fetch -q origin badges; then
+            git checkout -q -B badges FETCH_HEAD
+          else
+            git checkout -q --orphan badges
+            git rm -rfq .
+          fi
           cp "$RUNNER_TEMP"/badges/*.json .
           git add ./*.json
-          git commit -qm "Badges for ${GITHUB_SHA::7}"
-          git push -qf origin badges
+          git diff --cached --quiet || { git commit -qm "Badges for ${GITHUB_SHA::7}"; git push -q origin badges; }

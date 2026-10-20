@@ -1,0 +1,35 @@
+name: Downloads badge
+
+# Counts installer downloads (.exe / .dmg) over every release and writes downloads.json to the `badges` branch for
+# the README. The updater's files (latest.json, .sig, .app.tar.gz) are left out: installed copies fetch them on their
+# own, so they'd count update checks, not people. Runs every 6 hours and on demand.
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  downloads:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: badges
+      - name: Count installer downloads
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          n=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases" \
+            --jq '[.[] | .assets[] | select(.name | test("\\.(exe|dmg)$")) | .download_count] | add // 0' \
+            | awk '{ s += $1 } END { print s + 0 }')
+          echo "installer downloads: $n"
+          printf '{"schemaVersion":1,"label":"downloads","message":"%s","color":"blue"}' "$n" > downloads.json
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add downloads.json
+          git diff --cached --quiet || { git commit -qm "Downloads badge"; git push -q origin badges; }
