@@ -16,6 +16,8 @@ use crate::paths::RUNNING_LOCK_FILE;
 use crate::platform::foreground::{self, ForegroundCheck};
 #[cfg(target_os = "macos")]
 use crate::platform::macos::ForegroundCheck;
+#[cfg(target_os = "linux")]
+use crate::platform::linux::ForegroundCheck;
 #[cfg(windows)]
 use crate::platform::windows as w;
 use serde::Serialize;
@@ -105,7 +107,9 @@ pub fn foreground_check(host: String) -> ForegroundCheck {
         foreground::foreground_check(&host, pet)
     }
     #[cfg(target_os = "macos")]
-    crate::platform::macos::foreground_check(&host)
+    return crate::platform::macos::foreground_check(&host);
+    #[cfg(target_os = "linux")]
+    return crate::platform::linux::foreground_check(&host);
 }
 
 fn agent(name: &str) -> Result<AgentIntegration, String> {

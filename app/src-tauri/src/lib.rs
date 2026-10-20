@@ -24,6 +24,13 @@ pub fn run() {
         std::process::exit(code);
     }
     let snapshot_args = snapshot::parse_args(&cli);
+    // Linux: the pet needs X11 window management (keep-below / keep-above, input shapes, the stacking order), which
+    // Wayland does not give clients. On a Wayland session, run through XWayland unless the user chose a backend.
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("GDK_BACKEND").is_none() && std::env::var_os("WAYLAND_DISPLAY").is_some() {
+        // SAFETY: still single-threaded here, before GTK or any thread starts.
+        unsafe { std::env::set_var("GDK_BACKEND", "x11") };
+    }
     let mut builder = tauri::Builder::default();
     // Single instance only for the real app: `--snapshot` must run while the installed app is running.
     if snapshot_args.is_none() {

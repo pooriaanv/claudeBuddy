@@ -60,15 +60,13 @@ struct Job {
 pub fn start(app: &AppHandle, args: SnapshotArgs) -> Result<(), Box<dyn std::error::Error>> {
     let url = format!("snapshot.html?lang={}&mode={}&font={}", args.lang, args.mode, args.font);
     app.manage(Job { out: args.out, mode: args.mode });
-    let mut builder = WebviewWindowBuilder::new(app, "snapshot", WebviewUrl::App(url.into()))
+    let builder = WebviewWindowBuilder::new(app, "snapshot", WebviewUrl::App(url.into()))
         .title("Claude Buddy snapshot")
         .visible(false)
         .focused(false)
         .inner_size(400.0, 300.0);
     #[cfg(windows)]
-    {
-        builder = builder.additional_browser_args(crate::BROWSER_ARGS);
-    }
+    let builder = builder.additional_browser_args(crate::BROWSER_ARGS);
     builder.build()?;
     std::thread::spawn(|| {
         std::thread::sleep(Duration::from_secs(30));
