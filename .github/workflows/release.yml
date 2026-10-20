@@ -30,7 +30,10 @@ jobs:
           cache: npm
           cache-dependency-path: app/package-lock.json
 
-      - uses: dtolnay/rust-toolchain@stable
+      # Third-party actions are pinned to a commit (CodeQL actions/unpinned-tag); the toolchain is then an input.
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
 
       - name: Check the version matches the tag
         shell: bash
@@ -71,7 +74,7 @@ jobs:
 
       - name: Build, sign and upload (draft)
         id: tauri
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -100,8 +103,9 @@ jobs:
           cache: npm
           cache-dependency-path: app/package-lock.json
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
+          toolchain: stable
           targets: aarch64-apple-darwin,x86_64-apple-darwin
 
       - run: npm ci
@@ -111,7 +115,7 @@ jobs:
       # notes already exist (windows job); this adds the .dmg, the updater .app.tar.gz + .sig and the darwin entries.
       # By id: a draft is not found by its tag.
       - name: Build, sign and upload (draft)
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -126,7 +130,7 @@ jobs:
       # A smaller download for Apple Silicon: the .dmg only. No updater artifacts and latest.json untouched - installed
       # copies (either .dmg) update from the universal .app.tar.gz.
       - name: Build and upload the Apple Silicon .dmg (draft)
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -153,7 +157,9 @@ jobs:
           cache: npm
           cache-dependency-path: app/package-lock.json
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
 
       # Tauri's Linux build prerequisites (WebKitGTK 4.1, AppIndicator for the tray), patchelf for the AppImage.
       - name: System libraries
@@ -166,7 +172,7 @@ jobs:
 
       # Ubuntu 22.04 on purpose: the oldest supported glibc, so the .deb and the AppImage also run on newer distros.
       - name: Build, sign and upload (draft)
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
