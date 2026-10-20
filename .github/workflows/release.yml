@@ -1,10 +1,11 @@
 name: Release
 
 # Push a tag like v0.1.0 (matching app/src-tauri/tauri.conf.json "version") to test, build, sign and publish the
-# Windows installer, the macOS app (universal .dmg, plus a smaller Apple Silicon-only .dmg) and the updater manifest (latest.json) as a GitHub release.
-# The macOS job runs after the Windows one, adds its files to the same release and merges its platforms into
-# latest.json. The release stays a draft (invisible to /releases/latest, so installed copies keep seeing the previous
-# one) until latest.json has been checked; only then is it published.
+# Windows installer, the macOS app (universal .dmg, plus a smaller Apple Silicon-only .dmg), the Linux .deb and
+# AppImage, and the updater manifest (latest.json) as a GitHub release. The jobs run one after another (windows ->
+# macos -> linux): each adds its files to the same draft release and merges its platforms into latest.json.
+# The release stays a draft (invisible to /releases/latest, so installed copies keep seeing the previous one) until
+# the publish job has checked latest.json; only then is it published.
 on:
   push:
     tags: ['v*']
@@ -58,6 +59,8 @@ jobs:
             echo 'Windows: download `ClaudeBuddy_*_x64-setup.exe` below and run it (per-user install, no admin).'
             echo
             echo 'Mac (macOS 14+): download `ClaudeBuddy_*_universal.dmg` (Apple Silicon and Intel) or the smaller `ClaudeBuddy_*_aarch64.dmg` (Apple Silicon only), open it and drag ClaudeBuddy to Applications. The app is not notarized: the first time, open it, then System Settings > Privacy & Security > Open Anyway.'
+            echo
+            echo 'Linux (x86_64, Ubuntu 22.04+ and similar): `ClaudeBuddy_*_amd64.AppImage` (make it executable and run it; updates itself) or `ClaudeBuddy_*_amd64.deb` (`sudo apt install ./ClaudeBuddy_*_amd64.deb`). Needs an X11 session or XWayland.'
             echo
             echo 'Installed copies update themselves.'
             echo 'EOF_NOTES'
@@ -133,8 +136,54 @@ jobs:
           includeUpdaterJson: false
           args: '--target aarch64-apple-darwin --bundles dmg'
 
+  # After macOS on purpose: each job merges its platforms into the release's latest.json (download, merge, upload),
+  # so two jobs at once could overwrite each other's entries.
+  linux:
+    needs: [windows, macos]
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # Tauri's Linux build prerequisites (WebKitGTK 4.1, AppIndicator for the tray), patchelf for the AppImage.
+      - name: System libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev patchelf
+
+      - run: npm ci
+      - run: npm test
+
+      # Ubuntu 22.04 on purpose: the oldest supported glibc, so the .deb and the AppImage also run on newer distros.
+      - name: Build, sign and upload (draft)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: app
+          releaseId: ${{ needs.windows.outputs.release_id }}
+          releaseDraft: true
+          includeUpdaterJson: true
+          args: '--config {"bundle":{"createUpdaterArtifacts":true}}'
+
+  publish:
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    steps:
       # A broken updater manifest can't be fixed for copies already installed: fail loudly unless latest.json has
-      # all three platforms, each signed, and both darwin entries point to the universal .app.tar.gz.
+      # every platform, each signed, the darwin entries pointing to the universal .app.tar.gz and Linux to the AppImage.
       - name: Check latest.json
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -147,13 +196,14 @@ jobs:
             const m = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
             const p = m.platforms ?? {};
             let ok = true;
-            for (const k of ["windows-x86_64", "darwin-aarch64", "darwin-x86_64"]) {
+            for (const k of ["windows-x86_64", "darwin-aarch64", "darwin-x86_64", "linux-x86_64"]) {
               const e = p[k];
               if (!e || !e.url || !e.signature) { console.log(`::error::latest.json: ${k} missing url or signature`); ok = false; }
             }
             for (const k of ["darwin-aarch64", "darwin-x86_64"]) {
               if (p[k] && !/universal.*\.app\.tar\.gz$/.test(p[k].url)) { console.log(`::error::latest.json: ${k} is not the universal .app.tar.gz (${p[k].url})`); ok = false; }
             }
+            if (p["linux-x86_64"] && !/\.AppImage$/.test(p["linux-x86_64"].url)) { console.log(`::error::latest.json: linux-x86_64 is not the AppImage (${p["linux-x86_64"].url})`); ok = false; }
             console.log("platforms:", Object.keys(p).join(", "));
             if (!ok) process.exit(1);
           ' "$RUNNER_TEMP/latest.json"

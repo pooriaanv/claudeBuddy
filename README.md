@@ -14,6 +14,7 @@
 <br>
 ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white)
 ![macOS](https://img.shields.io/badge/macOS-14%2B-000000?logo=apple&logoColor=white)
+![Linux](https://img.shields.io/badge/Linux-X11%20%7C%20XWayland-FCC624?logo=linux&logoColor=black)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-24C8DB?logo=tauri&logoColor=white)
 ![Rust](https://img.shields.io/badge/Rust-2024-CE422B?logo=rust&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)
@@ -66,6 +67,10 @@ English / فارسی, and one-click agent hooks.
   `ClaudeBuddy_<version>_aarch64.dmg` (Apple Silicon only) and drag ClaudeBuddy to Applications. The app isn't
   notarized: open it once, then **System Settings → Privacy & Security → Open Anyway**. It replaces an older
   ClaudeBuddy for Mac (same app id; the old copy is closed when the new one starts).
+- **Linux** (x86_64; tested on Ubuntu 22.04, newer distros should work too): the `ClaudeBuddy_<version>_amd64.AppImage`
+  (`chmod +x` it and run it; it updates itself) or the `.deb` (`sudo apt install ./ClaudeBuddy_<version>_amd64.deb`).
+  Needs X11 or XWayland (a Wayland session runs it through XWayland automatically); the tray icon needs
+  AppIndicator support (built into Ubuntu; on other GNOME desktops, the AppIndicator extension).
 
 Then: tray / menu bar icon → **Settings… → Agents → Connect** next to Claude Code (and/or Codex).
 
@@ -79,7 +84,7 @@ Any other tool can knock too:
 
 ```bash
 ~/.claude-buddy/buddy-notify.exe <name> done '{"project": "my-app"}'   # Windows
-~/.claude-buddy/buddy-notify <name> done '{"project": "my-app"}'       # macOS
+~/.claude-buddy/buddy-notify <name> done '{"project": "my-app"}'       # macOS / Linux
 ```
 
 ## Development
@@ -91,19 +96,21 @@ app/
 │  ├─ render/      Canvas 2D: the 8 characters, bubble, effects, app icon
 │  ├─ app/         pet controller, coordinator, preferences, tray menu, updater
 │  └─ settings/    the settings window
-├─ src-tauri/      Rust: windows, z-order and click-through (platform/windows.rs, platform/macos.rs), hook installer,
+├─ src-tauri/      Rust: windows, z-order and click-through (platform/{windows,macos,linux}.rs), hook installer,
 │                  inbox, tray / menu bar
 └─ notify/         Rust: buddy-notify, the tiny hook helper agents call
 ```
 
 Needs Node 22/24 LTS and Rust. Windows: Visual Studio 2022 Build Tools ("Desktop development with C++"), WebView2.
-macOS: Xcode Command Line Tools.
+macOS: Xcode Command Line Tools. Linux:
+[Tauri's prerequisites](https://v2.tauri.app/start/prerequisites/#linux) (`libwebkit2gtk-4.1-dev`,
+`libayatana-appindicator3-dev`, …).
 
 ```bash
 cd app
 npm install
 npm run tauri dev      # run it
-npm run tauri build    # Windows → bundle/nsis/*.exe; macOS → bundle/macos/*.app and bundle/dmg/*.dmg
+npm run tauri build    # Windows → bundle/nsis/*.exe; macOS → bundle/dmg/*.dmg; Linux → bundle/deb, bundle/appimage
 ```
 
 `ClaudeBuddy --snapshot out.png en sheet` renders every character in every pose with the real renderer, which is
@@ -119,7 +126,7 @@ cargo test --manifest-path notify/Cargo.toml        #   hook helper
 cargo test --manifest-path src-tauri/Cargo.toml     #   app (hook installer, inbox, paths, …)
 ```
 
-CI runs all of it on Windows and macOS for every push and pull request. The coverage badge measures the logic
+CI runs all of it on Windows, macOS and Linux for every push and pull request. The coverage badge measures the logic
 (`src/core`, `src/app`): the brain, animation timing, attention queue, agent events, geometry, preferences and the
 pet controller. The canvas drawing and the settings DOM aren't unit-tested; they're checked with `--snapshot`
 previews and on a real desktop.

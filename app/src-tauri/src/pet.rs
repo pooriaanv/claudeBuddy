@@ -106,6 +106,7 @@ pub fn set_click_through(enabled: bool) {
 /// The first frame is drawn: show the window without activating it (D2), at the current level.
 #[tauri::command]
 pub fn pet_ready() {
+    crate::agents::PAGE_READY.store(true, std::sync::atomic::Ordering::SeqCst);
     #[cfg(windows)]
     if let Some(hwnd) = crate::platform::windows::pet_hwnd() {
         use crate::platform::windows as w;
