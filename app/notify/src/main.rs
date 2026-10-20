@@ -3,7 +3,7 @@
 //! `buddy-notify <agent> <event> [json]` drops an event file into `<home>\.claude-buddy\inbox` and starts the
 //! app if it is not running. Prints nothing and always exits 0 (a hook must never break the agent).
 //!
-//! Home is `%USERPROFILE%` (`$HOME` on macOS), or the `BUDDY_HOME` environment variable when set (tests and
+//! Home is `%USERPROFILE%` (`$HOME` on macOS and Linux), or the `BUDDY_HOME` environment variable when set (tests and
 //! debugging).
 
 mod cli;
@@ -14,6 +14,8 @@ mod run;
 mod sys;
 #[cfg(target_os = "macos")]
 mod sys_macos;
+#[cfg(target_os = "linux")]
+mod sys_linux;
 
 fn main() {
     // A panic must not change the exit code or print anything (Claude shows a hook's stderr).
@@ -46,5 +48,18 @@ fn real_main() {
     run::run(&args, &home, unix_secs, std::process::id(), &mut sys);
 }
 
-#[cfg(not(any(windows, target_os = "macos")))]
+#[cfg(target_os = "linux")]
+fn real_main() {
+    let args: Vec<String> = std::env::args_os().skip(1).map(|a| a.to_string_lossy().into_owned()).collect();
+    let Some(home) = run::home_dir(std::env::var_os("BUDDY_HOME"), std::env::var_os("HOME")) else {
+        return;
+    };
+    let unix_secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    let mut sys = sys_linux::LinuxSystem { root: home.join(".claude-buddy") };
+    run::run(&args, &home, unix_secs, std::process::id(), &mut sys);
+}
+
+#[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
 fn real_main() {}

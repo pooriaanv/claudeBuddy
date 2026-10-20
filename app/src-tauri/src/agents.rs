@@ -16,10 +16,13 @@ use crate::paths::RUNNING_LOCK_FILE;
 use crate::platform::foreground::{self, ForegroundCheck};
 #[cfg(target_os = "macos")]
 use crate::platform::macos::ForegroundCheck;
+#[cfg(target_os = "linux")]
+use crate::platform::linux::ForegroundCheck;
 #[cfg(windows)]
 use crate::platform::windows as w;
 use serde::Serialize;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tauri::{Emitter, Manager};
 
@@ -85,12 +88,19 @@ pub fn start(app: &tauri::AppHandle) {
     let app = app.clone();
     let _ = std::thread::Builder::new().name("inbox".into()).spawn(move || loop {
         std::thread::sleep(Duration::from_millis(400));
+        // Events wait in the folder until the page listens (an app the helper just started would lose them).
+        if !PAGE_READY.load(Ordering::SeqCst) {
+            continue;
+        }
         let texts = inbox::drain(&paths.inbox());
         if !texts.is_empty() {
             let _ = app.emit_to("pet", "inbox", InboxPayload { texts });
         }
     });
 }
+
+/// Set by `pet_ready`: the page has registered its `inbox` listener.
+pub static PAGE_READY: AtomicBool = AtomicBool::new(false);
 
 #[tauri::command]
 pub fn set_active_marker(on: bool) {
@@ -105,7 +115,9 @@ pub fn foreground_check(host: String) -> ForegroundCheck {
         foreground::foreground_check(&host, pet)
     }
     #[cfg(target_os = "macos")]
-    crate::platform::macos::foreground_check(&host)
+    return crate::platform::macos::foreground_check(&host);
+    #[cfg(target_os = "linux")]
+    return crate::platform::linux::foreground_check(&host);
 }
 
 fn agent(name: &str) -> Result<AgentIntegration, String> {

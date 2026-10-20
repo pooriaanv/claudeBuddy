@@ -1,7 +1,7 @@
 name: CI
 
 # Every push to main and every pull request: type-check, unit tests with coverage (TypeScript) and the Rust tests of
-# the app and of the hook helper, on Windows and macOS. On main, the Windows run also refreshes the README badges
+# the app and of the hook helper, on Windows, macOS and Linux. On main, the Windows run also refreshes the README badges
 # (test count, coverage) on the `badges` branch, which shields.io reads.
 on:
   push:
@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest]
+        os: [windows-latest, macos-latest, ubuntu-22.04]
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -32,6 +32,12 @@ jobs:
           cache-dependency-path: app/package-lock.json
 
       - uses: dtolnay/rust-toolchain@stable
+
+      - name: Linux system libraries (WebKitGTK, AppIndicator)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev
 
       - uses: Swatinem/rust-cache@v2
         with:

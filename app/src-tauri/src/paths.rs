@@ -130,6 +130,11 @@ impl BuddyPaths {
 
     /// `write_app_path_for(current_exe())`: call on every launch.
     pub fn write_app_path(&self) -> io::Result<()> {
+        // Linux AppImage: current_exe() is inside a temporary mount; the helper must start the .AppImage itself.
+        #[cfg(target_os = "linux")]
+        if let Some(appimage) = std::env::var_os("APPIMAGE").filter(|a| !a.is_empty()) {
+            return self.write_app_path_for(Path::new(&appimage));
+        }
         self.write_app_path_for(&std::env::current_exe()?)
     }
 

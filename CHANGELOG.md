@@ -2,6 +2,13 @@
 
 Every release's notes on GitHub come from its section here (`## <version> — <date>`), so add one before tagging.
 
+## 0.3.0 — 2026-10-21
+
+- **Linux.** The same app on Linux (X11, or XWayland on a Wayland session): an AppImage that updates itself and a
+  .deb. The tray icon, Claude Code / Codex hooks, open at login and single instance work like on Windows and macOS.
+- If an agent finishes while the buddy isn't running, the hook starts it and the knock is no longer lost while the
+  app is still loading.
+
 ## 0.2.1 — 2026-10-20
 
 - macOS: a smaller Apple Silicon-only .dmg next to the universal one (both update the same way).

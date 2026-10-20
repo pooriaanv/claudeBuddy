@@ -35,6 +35,10 @@ base64 = "0.22"
 # Prefs (12-windows-plan.md D14): prefs.json in the app data dir (com.pooria.claudebuddy), used from the page.
 tauri-plugin-store = "2"
 
+[target.'cfg(target_os = "linux")'.dependencies]
+# X11 queries for the pet (cursor, idle time, stacking order, active window): platform/linux.rs.
+x11rb = { version = "0.13", features = ["screensaver"] }
+
 [target.'cfg(target_os = "macos")'.dependencies]
 # Same versions as the ones tao/wry already pull in.
 objc2 = "0.6"

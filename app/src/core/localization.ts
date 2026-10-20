@@ -126,13 +126,25 @@ export const MAC_OVERRIDES: Partial<Record<L10nKey, L10nPair>> = {
   },
 };
 
-function detectPlatform(): "mac" | "windows" {
-  return typeof navigator !== "undefined" && /Mac/.test(navigator.userAgent ?? "") ? "mac" : "windows";
+/// Linux: the Mac wording with "computer" for "Mac".
+export const LINUX_OVERRIDES: Partial<Record<L10nKey, L10nPair>> = {
+  launchAtLogin: { en: "Open at login", fa: "با روشن شدن سیستم باز شه" },
+  toolNotFound: { en: "not found on this computer", fa: "روی این کامپیوتر پیدا نشد" },
+  otherAgentsHint: MAC_OVERRIDES.otherAgentsHint,
+};
+
+export type Platform = "mac" | "windows" | "linux";
+
+function detectPlatform(): Platform {
+  const ua = typeof navigator !== "undefined" ? (navigator.userAgent ?? "") : "";
+  if (/Mac/.test(ua)) return "mac";
+  if (/Linux|X11/.test(ua)) return "linux";
+  return "windows";
 }
 
 export class L10n {
   /// Which wording overrides apply; settable for tests.
-  static platform: "mac" | "windows" = detectPlatform();
+  static platform: Platform = detectPlatform();
 
   /// Always "en" or "fa".
   readonly language: "en" | "fa";
@@ -152,7 +164,8 @@ export class L10n {
 
   /// Swift `callAsFunction(_ key:)`.
   t(key: L10nKey): string {
-    const overrides = L10n.platform === "mac" ? MAC_OVERRIDES : WINDOWS_OVERRIDES;
+    const overrides =
+      L10n.platform === "mac" ? MAC_OVERRIDES : L10n.platform === "linux" ? LINUX_OVERRIDES : WINDOWS_OVERRIDES;
     const pair = overrides[key] ?? (L10n.table as Partial<Record<L10nKey, L10nPair>>)[key] ?? { en: key, fa: key };
     return this.language === "fa" ? pair.fa : pair.en;
   }
