@@ -2,6 +2,10 @@
 
 Every release's notes on GitHub come from its section here (`## <version> — <date>`), so add one before tagging.
 
+## 0.2.1 — 2026-10-20
+
+- macOS: a smaller Apple Silicon-only .dmg next to the universal one (both update the same way).
+
 ## 0.2.0 — 2026-10-19
 
 - **macOS.** The same app now runs on macOS 14+ (Apple Silicon and Intel): a universal .dmg, the menu bar icon,
