@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from "vite";
 // @ts-expect-error type error without @types/node package
 import process from "node:process";
@@ -20,6 +21,16 @@ export default defineConfig(() => ({
         snapshot: resolve(process.cwd(), "snapshot.html"),
         settings: resolve(process.cwd(), "settings.html"),
       },
+    },
+  },
+  // Unit-test coverage of the logic (`npm run test:coverage`). Canvas drawing (render/), the settings DOM and the thin
+  // Tauri/Web-API glue are left out: they are checked with the --snapshot previews and on the real desktop.
+  test: {
+    coverage: {
+      provider: "v8",
+      include: ["src/core/**/*.ts", "src/app/**/*.ts"],
+      exclude: ["src/**/*.test.ts", "src/app/platform.ts", "src/app/snapshot.ts", "src/app/debug.ts", "src/app/sound.ts"],
+      reporter: ["text-summary", "json-summary"],
     },
   },
   // 2. tauri expects a fixed port, fail if that port is not available

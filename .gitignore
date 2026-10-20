@@ -9,3 +9,6 @@ app/notify/target/
 
 # internal port notes (kept locally)
 docs/port/
+app/coverage/
+app/badges/
+app/vitest-results.json

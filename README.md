@@ -1,11 +1,32 @@
 ![ClaudeBuddy](assets/banner.png)
 
+<div align="center">
+
 # ClaudeBuddy
 
-A tiny desktop pet for Windows and macOS that lives at the bottom of your screen and knocks on the glass when your
-AI coding agent — Claude Code, Codex, or anything else — is done or needs your OK.
+**A tiny desktop pet that knocks on your screen when your AI coding agent is done or needs your OK.**
 
-Built with Tauri v2; it grew out of the original [Swift ClaudeBuddy for macOS](https://github.com/pooriaanv/claudBuddy-Mac) (v0.0.9).
+[![CI](https://github.com/pooriaanv/claudeBuddy/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/pooriaanv/claudeBuddy/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fpooriaanv%2FclaudeBuddy%2Fbadges%2Ftests.json)](https://github.com/pooriaanv/claudeBuddy/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fpooriaanv%2FclaudeBuddy%2Fbadges%2Fcoverage.json)](#testing)
+[![Release](https://img.shields.io/github/v/release/pooriaanv/claudeBuddy?color=orange)](https://github.com/pooriaanv/claudeBuddy/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/pooriaanv/claudeBuddy/total?color=blue)](https://github.com/pooriaanv/claudeBuddy/releases)
+<br>
+![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white)
+![macOS](https://img.shields.io/badge/macOS-14%2B-000000?logo=apple&logoColor=white)
+![Tauri](https://img.shields.io/badge/Tauri-v2-24C8DB?logo=tauri&logoColor=white)
+![Rust](https://img.shields.io/badge/Rust-2024-CE422B?logo=rust&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)
+[![License: MIT](https://img.shields.io/github/license/pooriaanv/claudeBuddy?color=green)](LICENSE)
+
+Works with **Claude Code**, **Codex**, or any CLI · 8 characters · English / فارسی · self-updating
+
+[⬇ Download](https://github.com/pooriaanv/claudeBuddy/releases/latest) · [What's new](CHANGELOG.md) · [Report a bug](https://github.com/pooriaanv/claudeBuddy/issues/new/choose)
+
+</div>
+
+It lives at the bottom of your screen, minds its own business while you work, and comes up to the glass when a
+session finishes or asks for permission — so you can look away from the terminal without missing a beat.
 
 ## Features
 
@@ -23,8 +44,7 @@ size, just in front of every window).
 **It has a life.** Sits, looks around, walks, dances, naps when you're away and wakes up with a yawn. Its eyes follow
 your cursor. Click for hearts; drag it around and drop it — it falls back to the floor. Drop it on an app and it
 stays in front of all your windows; drop it on the desktop and it goes back behind them. Every character meditates
-now and then; the ninjas practice kata,
-kicks, shuriken and the sword; Byte opens a laptop and codes.
+now and then; the ninjas practice kata, kicks, shuriken and the sword; Byte opens a laptop and codes.
 
 ![Meditation and ninja moves](assets/moves.png)
 
@@ -43,8 +63,9 @@ English / فارسی, and one-click agent hooks.
 - **Windows:** run `ClaudeBuddy_<version>_x64-setup.exe` (installs for your user only, no admin). Windows may show
   "Windows protected your PC" (the installer isn't code-signed yet): **More info → Run anyway**.
 - **macOS 14+**: open `ClaudeBuddy_<version>_universal.dmg` (Apple Silicon and Intel) or the smaller
-  `ClaudeBuddy_<version>_aarch64.dmg` (Apple Silicon only) and drag ClaudeBuddy to Applications. The app isn't notarized: open it once, then **System Settings → Privacy & Security → Open Anyway**.
-  It replaces the old Swift ClaudeBuddy (same app id; the old copy is closed when the new one starts).
+  `ClaudeBuddy_<version>_aarch64.dmg` (Apple Silicon only) and drag ClaudeBuddy to Applications. The app isn't
+  notarized: open it once, then **System Settings → Privacy & Security → Open Anyway**. It replaces an older
+  ClaudeBuddy for Mac (same app id; the old copy is closed when the new one starts).
 
 Then: tray / menu bar icon → **Settings… → Agents → Connect** next to Claude Code (and/or Codex).
 
@@ -61,17 +82,47 @@ Any other tool can knock too:
 ~/.claude-buddy/buddy-notify <name> done '{"project": "my-app"}'       # macOS
 ```
 
-## Build
+## Development
 
-Node 22/24 LTS and Rust. Windows: Visual Studio 2022 Build Tools ("Desktop development with C++"), WebView2. macOS:
-Xcode Command Line Tools.
+```
+app/
+├─ src/            TypeScript, shared by every platform
+│  ├─ core/        brain (what to do next), animation, attention queue, agent events, localization
+│  ├─ render/      Canvas 2D: the 8 characters, bubble, effects, app icon
+│  ├─ app/         pet controller, coordinator, preferences, tray menu, updater
+│  └─ settings/    the settings window
+├─ src-tauri/      Rust: windows, z-order and click-through (platform/windows.rs, platform/macos.rs), hook installer,
+│                  inbox, tray / menu bar
+└─ notify/         Rust: buddy-notify, the tiny hook helper agents call
+```
+
+Needs Node 22/24 LTS and Rust. Windows: Visual Studio 2022 Build Tools ("Desktop development with C++"), WebView2.
+macOS: Xcode Command Line Tools.
 
 ```bash
 cd app
 npm install
-npm test
+npm run tauri dev      # run it
 npm run tauri build    # Windows → bundle/nsis/*.exe; macOS → bundle/macos/*.app and bundle/dmg/*.dmg
 ```
+
+`ClaudeBuddy --snapshot out.png en sheet` renders every character in every pose with the real renderer, which is
+handy for checking a visual change.
+
+### Testing
+
+```bash
+npm test                                            # TypeScript unit tests (Vitest)
+npm run test:coverage                               # … with coverage
+npm run build:notify                                # then the Rust tests:
+cargo test --manifest-path notify/Cargo.toml        #   hook helper
+cargo test --manifest-path src-tauri/Cargo.toml     #   app (hook installer, inbox, paths, …)
+```
+
+CI runs all of it on Windows and macOS for every push and pull request. The coverage badge measures the logic
+(`src/core`, `src/app`): the brain, animation timing, attention queue, agent events, geometry, preferences and the
+pet controller. The canvas drawing and the settings DOM aren't unit-tested; they're checked with `--snapshot`
+previews and on a real desktop.
 
 ## License
 

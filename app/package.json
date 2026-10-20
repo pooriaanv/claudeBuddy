@@ -11,7 +11,8 @@
     "test": "vitest run --passWithNoTests",
     "tauri": "tauri",
     "snapshot": "node scripts/snapshot.mjs",
-    "build:notify": "node scripts/build-notify.mjs"
+    "build:notify": "node scripts/build-notify.mjs",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@fontsource-variable/vazirmatn": "^5.3.0",
@@ -24,6 +25,7 @@
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
+    "@vitest/coverage-v8": "^5.0.4",
     "typescript": "~6.0.3",
     "vite": "^8.0.16",
     "vitest": "^5.0.4"

@@ -1,0 +1,105 @@
+name: CI
+
+# Every push to main and every pull request: type-check, unit tests with coverage (TypeScript) and the Rust tests of
+# the app and of the hook helper, on Windows and macOS. On main, the Windows run also refreshes the README badges
+# (test count, coverage) on the `badges` branch, which shields.io reads.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: app
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            app/src-tauri
+            app/notify
+
+      - run: npm ci
+      - run: npx tsc --noEmit
+
+      - name: TypeScript tests + coverage
+        run: npx vitest run --coverage --reporter=default --reporter=json --outputFile.json=vitest-results.json
+
+      # The app's build script needs the bundled helper (resources/buddy-notify[.exe]).
+      - run: npm run build:notify
+
+      - name: Rust tests (hook helper)
+        run: cargo test --manifest-path notify/Cargo.toml 2>&1 | tee rust-notify.log
+
+      - name: Rust tests (app)
+        run: cargo test --manifest-path src-tauri/Cargo.toml 2>&1 | tee rust-app.log
+
+      - name: Badge data
+        if: matrix.os == 'windows-latest'
+        run: |
+          mkdir -p badges
+          node -e '
+            const fs = require("fs");
+            const ts = JSON.parse(fs.readFileSync("vitest-results.json", "utf8")).numPassedTests;
+            const rust = ["rust-notify.log", "rust-app.log"]
+              .map((f) => fs.readFileSync(f, "utf8"))
+              .join("\n")
+              .split("\n")
+              .map((l) => /test result: ok\. (\d+) passed/.exec(l))
+              .reduce((n, m) => n + (m ? Number(m[1]) : 0), 0);
+            const pct = JSON.parse(fs.readFileSync("coverage/coverage-summary.json", "utf8")).total.lines.pct;
+            const color = pct >= 80 ? "brightgreen" : pct >= 60 ? "yellow" : "red";
+            const badge = (label, message, color) => JSON.stringify({ schemaVersion: 1, label, message, color });
+            fs.writeFileSync("badges/tests.json", badge("tests", `${ts + rust} passed`, "brightgreen"));
+            fs.writeFileSync("badges/coverage.json", badge("coverage", `${Math.round(pct)}%`, color));
+            console.log(`TypeScript ${ts}, Rust ${rust}, coverage ${pct}%`);
+          '
+
+      - uses: actions/upload-artifact@v4
+        if: matrix.os == 'windows-latest'
+        with:
+          name: badges
+          path: app/badges/
+
+  badges:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: badges
+          path: ${{ runner.temp }}/badges
+      - name: Publish to the badges branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan badges
+          git rm -rfq .
+          cp "$RUNNER_TEMP"/badges/*.json .
+          git add ./*.json
+          git commit -qm "Badges for ${GITHUB_SHA::7}"
+          git push -qf origin badges
