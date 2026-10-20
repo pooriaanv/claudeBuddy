@@ -37,7 +37,17 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-audit
+      # Known, reviewed advisories without a stable fix yet - each one is unreachable in this app:
+      # - RUSTSEC-2024-0429 (glib 0.18 VariantStrIter, unsound): Linux-only GTK3 stack under Tauri; nothing in the
+      #   dependency tree calls VariantStrIter. Fixed in glib 0.20, which needs Tauri on GTK4.
+      # - RUSTSEC-2026-0367/0368/0369 (zip 4 extraction): only tauri-plugin-updater uses zip, only on Windows, only for
+      #   a .zip update - ours is the signed NSIS .exe, and nothing is extracted before its minisign signature checks
+      #   out. Fixed in zip 9, which only the updater's 3.0 alpha uses.
+      # Remove each ignore once Dependabot brings the fix.
       - name: App
-        run: cargo audit --file app/src-tauri/Cargo.lock
+        run: >-
+          cargo audit --file app/src-tauri/Cargo.lock
+          --ignore RUSTSEC-2024-0429
+          --ignore RUSTSEC-2026-0367 --ignore RUSTSEC-2026-0368 --ignore RUSTSEC-2026-0369
       - name: Hook helper
         run: cargo audit --file app/notify/Cargo.lock
