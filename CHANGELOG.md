@@ -2,6 +2,14 @@
 
 Every release's notes on GitHub come from its section here (`## <version> — <date>`), so add one before tagging.
 
+## 0.3.1 — 2026-10-21
+
+- Security: the update download now uses the patched TLS certificate checks (rustls-webpki 0.103.16,
+  webpki-root-certs 1.0.10).
+- Tauri 2.12.4 and other dependency updates.
+- Repository: CodeQL code scanning, a daily dependency audit and Dependabot; CI actions are pinned to exact commits.
+  Older releases now say they are outdated and link to the latest one.
+
 ## 0.3.0 — 2026-10-21
 
 - **Linux.** The same app on Linux (X11, or XWayland on a Wayland session): an AppImage that updates itself and a

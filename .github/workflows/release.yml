@@ -220,3 +220,22 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_ID: ${{ needs.windows.outputs.release_id }}
         run: gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" -F draft=false -f make_latest=true --silent
+
+      # GitHub has no "deprecated" flag for releases: put a notice at the top of every older published release that
+      # points to the latest one. Idempotent (a marker comment); the files of old releases stay where they are.
+      - name: Mark older releases as outdated
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ needs.windows.outputs.release_id }}
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/releases" --jq '.[] | select(.draft | not) | {id, tag_name, body}' \
+            | jq -c . > "$RUNNER_TEMP/releases.jsonl"
+          while IFS= read -r rel; do
+            id=$(jq -r .id <<<"$rel"); tag=$(jq -r .tag_name <<<"$rel")
+            [ "$id" = "$RELEASE_ID" ] && continue
+            if jq -r '.body // ""' <<<"$rel" | grep -q '<!-- outdated -->'; then continue; fi
+            notice="<!-- outdated -->"$'\n'"> [!WARNING]"$'\n'"> **This version is outdated.** Download the [latest release](https://github.com/$GITHUB_REPOSITORY/releases/latest) instead — installed copies update themselves."
+            body="$notice"$'\n\n'"$(jq -r '.body // ""' <<<"$rel")"
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$id" -f body="$body" --silent
+            echo "marked $tag as outdated"
+          done < "$RUNNER_TEMP/releases.jsonl"
