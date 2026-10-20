@@ -1,0 +1,28 @@
+# Pull requests for dependency updates, weekly, with minor and patch updates grouped into one PR per ecosystem to
+# keep the noise down. Security updates come as soon as an advisory is published (enable "Dependabot security
+# updates" under Settings -> Code security).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /app
+    schedule:
+      interval: weekly
+    groups:
+      npm-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: cargo
+    directories: [/app/src-tauri, /app/notify]
+    schedule:
+      interval: weekly
+    groups:
+      cargo-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']

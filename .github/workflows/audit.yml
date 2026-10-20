@@ -1,0 +1,43 @@
+name: Dependency audit
+
+# Known vulnerabilities in the libraries we ship: npm (the page) and RustSec (the app and the hook helper).
+# Fails on a published vulnerability; "unmaintained" / "unsound" advisories are reported as warnings only.
+# On every change to a lockfile, on pull requests, and daily (new advisories appear without any change here).
+on:
+  push:
+    branches: [main]
+    paths: ['app/package-lock.json', 'app/src-tauri/Cargo.lock', 'app/notify/Cargo.lock', '.github/workflows/audit.yml']
+  pull_request:
+    paths: ['app/package-lock.json', 'app/src-tauri/Cargo.lock', 'app/notify/Cargo.lock', '.github/workflows/audit.yml']
+  schedule:
+    - cron: '41 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  npm:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      # Runtime dependencies only: the dev tools (Vite, Vitest, the Tauri CLI) never reach users.
+      - run: npm audit --omit=dev --audit-level=moderate
+
+  cargo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+      - name: App
+        run: cargo audit --file app/src-tauri/Cargo.lock
+      - name: Hook helper
+        run: cargo audit --file app/notify/Cargo.lock

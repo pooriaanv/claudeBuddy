@@ -7,6 +7,8 @@
 **A tiny desktop pet that knocks on your screen when your AI coding agent is done or needs your OK.**
 
 [![CI](https://github.com/pooriaanv/claudeBuddy/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/pooriaanv/claudeBuddy/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/pooriaanv/claudeBuddy/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/pooriaanv/claudeBuddy/security/code-scanning)
+[![Dependency audit](https://github.com/pooriaanv/claudeBuddy/actions/workflows/audit.yml/badge.svg)](https://github.com/pooriaanv/claudeBuddy/actions/workflows/audit.yml)
 [![Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fpooriaanv%2FclaudeBuddy%2Fbadges%2Ftests.json)](https://github.com/pooriaanv/claudeBuddy/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fpooriaanv%2FclaudeBuddy%2Fbadges%2Fcoverage.json)](#testing)
 [![Release](https://img.shields.io/github/v/release/pooriaanv/claudeBuddy?color=orange)](https://github.com/pooriaanv/claudeBuddy/releases/latest)
