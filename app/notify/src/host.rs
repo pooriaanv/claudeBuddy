@@ -8,6 +8,9 @@ const STOP_LIST: [&str; 5] = ["explorer.exe", "svchost.exe", "services.exe", "si
 /// macOS: launchd (pid 1) starts every app; the host is the ancestor right below it (notify.sh: "parent = 1").
 const MAC_STOP_LIST: [&str; 1] = ["launchd"];
 
+/// Linux: systemd (pid 1, and the per-user manager that starts desktop apps) and init.
+const LINUX_STOP_LIST: [&str; 2] = ["systemd", "init"];
+
 /// Safety net against odd tables (a cycle of equal creation times); real chains are < 10 deep.
 const MAX_DEPTH: usize = 64;
 
@@ -48,7 +51,7 @@ fn is_host_candidate(table: &impl ProcessTable, parent: u32, child: u32) -> bool
     }
     // Missing: the parent has exited (the child outlived it, e.g. a detached launch).
     let Some(name) = table.exe_name(parent) else { return false };
-    if STOP_LIST.iter().chain(&MAC_STOP_LIST).any(|stop| stop.eq_ignore_ascii_case(&name)) {
+    if STOP_LIST.iter().chain(&MAC_STOP_LIST).chain(&LINUX_STOP_LIST).any(|stop| stop.eq_ignore_ascii_case(&name)) {
         return false;
     }
     // Windows reuses pids: a "parent" created after its child is a stranger that got the old parent's pid.
