@@ -59,7 +59,7 @@ export const Impatience = {
   KNOCK_AGAIN_SECONDS: 5,
   SLAMS: 10,
   /// The cracked glass stays this long (fading out at the end), then the buddy goes back to its own life.
-  CRACK_SECONDS: 5,
+  CRACK_SECONDS: 4,
 } as const;
 
 /// Floating word on the glass for each kind of hit (onomatopoeia, not translated); `knock` uses the localized word.
@@ -270,24 +270,39 @@ export class Animator {
       }
       if (i.crackAge >= 0) {
         s.crackAge = i.crackAge;
-        p.mood = "surprised";
-        p.mouth = "o";
-        p.mouthOpen = 1;
-        p.eyeOpen = 1;
-        p.headTilt = 0;
-        // jumps back from the glass, then stays very still
-        const jolt = i.crackAge < 0.5 ? Math.sin((i.crackAge / 0.5) * Math.PI) : 0;
-        p.lift = -jolt * 10;
-        // "whoa": both hands half up (right arm angles are negative outward, left arm positive; under 80 degrees,
-        // so the ninja does not draw its katana)
-        p.rightArm = lerp(p.rightArm, -65, smooth(i.crackAge / 0.3));
-        p.leftArm = lerp(p.leftArm, 65, smooth(i.crackAge / 0.3));
+        const c = i.crackAge;
         p.reach = 0;
         p.rightArmInFront = false;
         p.press = 1;
-        if (i.crackAge < 0.4) {
-          const f = (1 - i.crackAge / 0.4) * 4;
-          s.shake = { width: Math.sin(i.crackAge * 90) * 2.2 * f, height: Math.cos(i.crackAge * 70) * 1.2 * f };
+        if (c < 0.8) {
+          // "whoa": jumps back from the glass, both hands half up (right arm angles are negative outward, left arm
+          // positive; under 80 degrees, so the ninja does not draw its katana)
+          p.mood = "surprised";
+          p.mouth = "o";
+          p.mouthOpen = 1;
+          p.eyeOpen = 1;
+          p.headTilt = 0;
+          p.lift = -(c < 0.5 ? Math.sin((c / 0.5) * Math.PI) : 0) * 10;
+          p.rightArm = lerp(p.rightArm, -65, smooth(c / 0.3));
+          p.leftArm = lerp(p.leftArm, 65, smooth(c / 0.3));
+        } else {
+          // then sheepish but alive (Pooria: it must not freeze): blinks, glances at the crack and back at you,
+          // rocks its head, bounces a little and fidgets with its hands
+          const q = smooth((c - 0.8) / 0.4);
+          p.mood = "normal";
+          p.mouth = Math.sin(t * 1.7) > 0.6 ? "o" : "small";
+          p.mouthOpen = 0.5;
+          p.eyeOpen = eyeOpen(t * 1.3);
+          p.look = { x: Math.sin(t * 1.1) > 0 ? 0.7 : -0.1, y: Math.sin(t * 0.7) * 0.2 };
+          p.headTilt = Math.sin(t * 2.3) * 6 * q;
+          p.lift = -Math.abs(Math.sin(t * 3.1)) * 2.5 * q;
+          p.rightArm = lerp(-65, -18 + Math.sin(t * 4.2) * 12, q);
+          p.leftArm = lerp(65, 18 + Math.sin(t * 4.2 + 1.3) * 12, q);
+          p.breathe = 1 + Math.sin(t * 2.2) * 0.03;
+        }
+        if (c < 0.4) {
+          const f = (1 - c / 0.4) * 4;
+          s.shake = { width: Math.sin(c * 90) * 2.2 * f, height: Math.cos(c * 70) * 1.2 * f };
         }
       }
     } else {

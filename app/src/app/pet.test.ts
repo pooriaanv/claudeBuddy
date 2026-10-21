@@ -214,6 +214,34 @@ describe("PetController (port of PetController.swift, physical px, y down)", () 
     expect(h.pet.mode).toBe("idle");
   });
 
+  // Windows addition (Pooria, 2026-10-21): after the glass cracks the buddy must not freeze - it goes home and lives on.
+  it("impatient knock: cracks the glass, then goes home and carries on", async () => {
+    const h = harness();
+    await h.pet.start();
+    h.platform.pointer = { x: 1500, y: 700, leftDown: false, idleSecs: 0 };
+    let gaveUp = 0;
+    h.pet.onGaveUp = () => gaveUp++;
+    h.pet.knock("Claude is done!", "waiting for you");
+    let cracked = false;
+    const poses: string[] = [];
+    await h.run(78, 20, () => {
+      if (h.pet.lastScene.crackAge >= 0) {
+        cracked = true;
+        poses.push(JSON.stringify([h.pet.lastScene.pose.lift, h.pet.lastScene.pose.headTilt, h.pet.lastScene.pose.eyeOpen]));
+      }
+    });
+    expect(cracked).toBe(true);
+    // alive while the crack is shown: the pose keeps changing
+    expect(new Set(poses).size).toBeGreaterThan(poses.length / 2);
+    await h.run(6, 20);
+    expect(gaveUp).toBe(1);
+    expect(h.pet.mode).toBe("idle");
+    expect(h.pet.frame()).toEqual(h.floor);
+    const activities = new Set<string>();
+    await h.run(60, 20, () => activities.add(h.pet.activity));
+    expect(activities.size).toBeGreaterThan(1); // back to its own life
+  });
+
   it("a click while knocking asks for dismissal instead of hearts", async () => {
     const h = harness();
     let dismissed = 0;

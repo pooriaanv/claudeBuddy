@@ -41,12 +41,12 @@ describe("Knocking.impatient", () => {
   it("theCrackShowsOnTheSceneWithASurprisedBuddy", () => {
     const input = new AnimationInput(50);
     input.mode = "alert";
-    input.alertElapsed = plan.crackAt + 1;
+    input.alertElapsed = plan.crackAt + 0.3;
     input.knockHits = plan.hits;
     input.knockKinds = plan.kinds;
-    input.crackAge = 1;
+    input.crackAge = 0.3; // the startle lasts 0.8 s, then it is sheepish but alive
     const scene = Animator.scene(input);
-    expect(scene.crackAge).toBe(1);
+    expect(scene.crackAge).toBe(0.3);
     expect(scene.pose.mood).toBe("surprised");
   });
 

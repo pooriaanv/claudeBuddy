@@ -294,8 +294,10 @@ function renderImpatient(l10n: L10n): HTMLCanvasElement {
     ["CLAP!", at("clap") + 0.03, -1],
     ["BANG! (slam)", at("slam", 3) + 0.03, -1],
     ["crack 0.1 s", plan.crackAt + 0.1, 0.1],
-    ["crack 0.6 s", plan.crackAt + 0.6, 0.6],
-    ["cracked, 5 s", plan.crackAt + 5, 5],
+    ["whoa 0.5 s", plan.crackAt + 0.5, 0.5],
+    ["sheepish 1.6 s", plan.crackAt + 1.6, 1.6],
+    ["sheepish 2.7 s", plan.crackAt + 2.7, 2.7],
+    ["fading 3.7 s", plan.crackAt + 3.7, 3.7],
   ];
   const skins: SkinID[] = ["buddy", "ninja"];
   const W = 240;
