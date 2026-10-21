@@ -42,7 +42,12 @@ export function draw(ctx: CanvasRenderingContext2D, size: Size, scene: PetScene,
 
   // glassMark is drawn with `ctx` (not `fx`): the lift is added to its point instead.
   const hit = skin.knockPoint(p);
-  for (const age of scene.knockAges) glassMark(ctx, pt(hit.x, hit.y + p.lift), age, scene.knockText);
+  scene.knockAges.forEach((age, n) =>
+    glassMark(ctx, pt(hit.x, hit.y + p.lift), age, scene.knockWords[n] ?? scene.knockText),
+  );
+  // Windows addition: the glass the buddy knocked on cracks (in front of the buddy - it is behind the glass).
+  // The window in character space is x -20...220, y (-20 - extraTop)...300: the crack stays inside it.
+  if (scene.crackAge >= 0) crackedGlass(ctx, hit, scene.crackAge, { x: -16, y: -16 - extraTop, w: 232, h: 312 + extraTop });
   ctx.save(); // var fx = ctx
   ctx.translate(0, p.lift);
   scene.heartAges.forEach((age, i) => hearts(ctx, age, i));
@@ -324,4 +329,94 @@ export function codeBits(ctx: CanvasRenderingContext2D, t: number): void {
     drawBlockAt(ctx, measure(bits[k], CODE_FONT, Infinity), 186 + side * 9 + ph * 6, 196 - ph * 80, rgb(1.0, 0.72, 0.45));
     ctx.restore();
   }
+}
+
+/// Windows addition (Pooria, 2026-10-21): cracks running out from the impact point, grown over 0.25 s and then
+/// left there. Deterministic (fixed seed), so every frame draws the same crack.
+export function crackedGlass(
+  ctx: CanvasRenderingContext2D,
+  p: Point,
+  age: number,
+  box: { x: number; y: number; w: number; h: number },
+): void {
+  const inside = (q: Point): boolean => q.x > box.x && q.y > box.y && q.x < box.x + box.w && q.y < box.y + box.h;
+  let seed = 7919;
+  const rnd = (): number => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+  const grow = Math.min(1, age / 0.25);
+  const rays: Point[][] = [];
+  const RAYS = 11;
+  for (let r = 0; r < RAYS; r++) {
+    let a = (r / RAYS) * Math.PI * 2 + (rnd() - 0.5) * 0.4;
+    const length = 110 + rnd() * 170;
+    const pts: Point[] = [p];
+    let x = p.x;
+    let y = p.y;
+    const steps = 6;
+    for (let s = 1; s <= steps; s++) {
+      a += (rnd() - 0.5) * 0.45;
+      let seg = (length / steps) * (0.7 + rnd() * 0.6);
+      // shorten the step until it stays on the glass (inside the window); a ray that cannot goes no further
+      for (let k = 0; k < 4 && !inside(pt(x + Math.cos(a) * seg, y + Math.sin(a) * seg)); k++) seg *= 0.5;
+      if (!inside(pt(x + Math.cos(a) * seg, y + Math.sin(a) * seg))) break;
+      x += Math.cos(a) * seg;
+      y += Math.sin(a) * seg;
+      pts.push(pt(x, y));
+    }
+    rays.push(pts);
+  }
+  // the part of a polyline that has grown so far
+  const grown = (pts: Point[], g: number): Path2D => {
+    const path = new Path2D();
+    path.moveTo(pts[0].x, pts[0].y);
+    const n = (pts.length - 1) * g;
+    for (let i = 1; i < pts.length; i++) {
+      if (i <= n) path.lineTo(pts[i].x, pts[i].y);
+      else {
+        const f = n - (i - 1);
+        if (f > 0) path.lineTo(pts[i - 1].x + (pts[i].x - pts[i - 1].x) * f, pts[i - 1].y + (pts[i].y - pts[i - 1].y) * f);
+        break;
+      }
+    }
+    return path;
+  };
+  const cracks: { path: Path2D; width: number }[] = [];
+  for (const ray of rays) {
+    cracks.push({ path: grown(ray, grow), width: 1 });
+    // a couple of short branches off each ray
+    for (let b = 0; b < 2 && ray.length >= 3; b++) {
+      const at = 1 + Math.floor(rnd() * (ray.length - 2));
+      const from = ray[at];
+      const dir = Math.atan2(ray[at].y - ray[at - 1].y, ray[at].x - ray[at - 1].x) + (rnd() < 0.5 ? -1 : 1) * (0.5 + rnd() * 0.5);
+      let len = 18 + rnd() * 40;
+      while (len > 4 && !inside(pt(from.x + Math.cos(dir + 0.2) * len, from.y + Math.sin(dir + 0.2) * len))) len *= 0.6;
+      const branch = [from, pt(from.x + Math.cos(dir) * len * 0.5, from.y + Math.sin(dir) * len * 0.5), pt(from.x + Math.cos(dir + 0.2) * len, from.y + Math.sin(dir + 0.2) * len)];
+      cracks.push({ path: grown(branch, Math.max(0, (grow - at / ray.length) * 2)), width: 0.7 });
+    }
+  }
+  // spider-web rings joining neighbouring rays near the impact
+  for (const ring of [0.18, 0.4]) {
+    const web = new Path2D();
+    rays.forEach((ray, r) => {
+      const next = rays[(r + 1) % rays.length];
+      const i = Math.max(1, Math.round(ring * 6));
+      if (grow < ring || i >= ray.length || i >= next.length) return;
+      web.moveTo(ray[i].x, ray[i].y);
+      web.lineTo(next[i].x, next[i].y);
+    });
+    cracks.push({ path: web, width: 0.7 });
+  }
+  ctx.save();
+  // the shattered spot at the impact
+  const spot = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 16);
+  spot.addColorStop(0, WHITE.opacity(0.6).css);
+  spot.addColorStop(1, WHITE.opacity(0).css);
+  ctx.fillStyle = spot;
+  ctx.fill(circle(p, 32));
+  for (const c of cracks) line(ctx, c.path, Palette.ink.opacity(0.55), 2.4 * c.width);
+  ctx.translate(-0.7, -0.7);
+  for (const c of cracks) line(ctx, c.path, WHITE.opacity(0.9), 1.1 * c.width);
+  ctx.restore();
 }

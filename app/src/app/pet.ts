@@ -10,6 +10,7 @@
 
 import { IN_PLACE_BUBBLE_SCALE } from "../render/sceneRenderer";
 import { AnimationInput, Animator, Knocking, PostureTracker, smooth } from "../core/animation";
+import type { HitKind, KnockPlan } from "../core/animation";
 import { Brain, BrainContext } from "../core/brain";
 import type { Activity, PetMode } from "../core/brain";
 import { Bubble, PetScene } from "../core/pose";
@@ -52,7 +53,8 @@ export interface PetPlatform {
 
 /// Knock sound hook (`KnockSound`, ported in P4). `release` is called when going home.
 export interface KnockSoundPlayer {
-  play(tone: KnockTone): void;
+  /// `kind`: Windows addition - the impatient knock's stomp / clap / slam, and the glass cracking.
+  play(tone: KnockTone, kind?: HitKind | "crack"): void;
   release(): void;
 }
 
@@ -149,6 +151,10 @@ export class PetController implements PressHandler {
 
   private alertStart = 0;
   private hits: number[] = [];
+  /// Windows addition: the kind of each hit, when the glass cracks (seconds since the alert began), and when it did.
+  private kinds: HitKind[] = [];
+  private crackAt = Infinity;
+  private crackedAt: number | null = null;
   private nextHit = 0;
   private bubbleText: { title: string; subtitle: string } | null = null;
   private animation: FrameAnimation | null = null;
@@ -227,7 +233,7 @@ export class PetController implements PressHandler {
   knock(title: string, subtitle: string): void {
     this.bubbleText = { title, subtitle };
     if (this._mode === "alert" || this._mode === "approaching") {
-      this.hits = Knocking.schedule(this.now - this.alertStart + 0.5); // someone new: knock again soon
+      this.setPlan(this.now - this.alertStart + 0.5); // someone new: knock again soon (a cracked glass stays cracked)
       this.nextHit = 0;
       return;
     }
@@ -236,7 +242,8 @@ export class PetController implements PressHandler {
     this.brain.settle(this.now);
     this._mode = "approaching";
     this.alertStart = this.now;
-    this.hits = Knocking.schedule(1.0);
+    this.crackedAt = null;
+    this.setPlan(1.0);
     this.nextHit = 0;
     this.platform.setLevel("front"); // panel.level = .statusBar; panel.orderFrontRegardless()
     this.debug(`knock: "${title}" / "${subtitle}"`);
@@ -466,11 +473,29 @@ export class PetController implements PressHandler {
     }
   }
 
+  /// Ordinary knocks, or (pref on) the impatient plan: rhythm, slams, cracked glass.
+  private setPlan(start: number): void {
+    const plan: KnockPlan = this.prefs.impatient
+      ? Knocking.impatient(start)
+      : { hits: Knocking.schedule(start), kinds: [], crackAt: Infinity };
+    this.hits = plan.hits;
+    this.kinds = plan.kinds;
+    this.crackAt = this.crackedAt === null ? plan.crackAt : Infinity;
+  }
+
   private playDueKnocks(t: number): void {
     const e = t - this.alertStart;
     while (this.nextHit < this.hits.length && this.hits[this.nextHit] <= e) {
-      if (this.prefs.soundOn && e - this.hits[this.nextHit] < 0.1) this.sound.play(this.skin().tone);
+      if (this.prefs.soundOn && e - this.hits[this.nextHit] < 0.1) {
+        this.sound.play(this.skin().tone, this.kinds[this.nextHit] ?? "knock");
+      }
       this.nextHit += 1;
+    }
+    if (this.crackedAt === null && e >= this.crackAt) {
+      this.crackedAt = this.crackAt;
+      this.hits = this.hits.slice(0, this.nextHit); // no more knocking on a broken glass
+      this.debug("impatient: the glass cracked");
+      if (this.prefs.soundOn && e - this.crackAt < 0.2) this.sound.play(this.skin().tone, "crack");
     }
   }
 
@@ -488,6 +513,8 @@ export class PetController implements PressHandler {
     input.posture = this.postures.state(t);
     input.alertElapsed = t - this.alertStart;
     input.knockHits = this.hits;
+    input.knockKinds = this.kinds;
+    input.crackAge = this.crackedAt === null ? -1 : t - this.alertStart - this.crackedAt;
     input.heartAges = this.hearts.map((h) => t - h);
     input.swing = this.swing;
     if (this._mode === "idle") {

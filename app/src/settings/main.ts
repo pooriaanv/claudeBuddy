@@ -129,6 +129,7 @@ async function render(prefs: Preferences): Promise<void> {
       row(t("knockStyle"), segmented<KnockStyle>(
         [["center", t("knockStyleCenter")], ["inPlace", t("knockStyleInPlace")]],
         prefs.knockStyle, (v) => { prefs.knockStyle = v; void render(prefs); })),
+      row(t("impatient"), toggle(prefs.impatient, (v) => { prefs.impatient = v; })),
       row(t("quietWhenWatching"), toggle(prefs.quietWhenWatching, (v) => { prefs.quietWhenWatching = v; })),
       el("div", "note", t("quietHint")),
       row(t("launchAtLogin"), toggle(login, (v) => {

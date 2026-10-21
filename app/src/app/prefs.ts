@@ -33,6 +33,8 @@ export interface PrefValues {
   /// Windows addition (Pooria, 2026-10-15): "center" = come to the middle of the screen, big (Mac); "inPlace" = knock
   /// where it is, same size, just above every window.
   knockStyle: KnockStyle;
+  /// Windows addition (Pooria, 2026-10-21): ignored for ~20 s -> the stomp-stomp-clap rhythm, slams, cracked glass.
+  impatient: boolean;
 }
 
 export type KnockStyle = "center" | "inPlace";
@@ -48,6 +50,7 @@ export const PREF_DEFAULTS: Readonly<PrefValues> = {
   quietWhenWatching: false,
   autoUpdate: true,
   knockStyle: "center",
+  impatient: true,
 };
 
 export const PREF_KEYS = Object.keys(PREF_DEFAULTS) as PrefKey[];
@@ -81,6 +84,7 @@ export function parsePref<K extends PrefKey>(key: K, raw: unknown): PrefValues[K
     case "soundOn":
     case "quietWhenWatching":
     case "autoUpdate":
+    case "impatient":
       v = typeof raw === "boolean" ? raw : d[key];
       break;
     case "knockStyle":
@@ -114,6 +118,7 @@ export class Preferences {
       quietWhenWatching: parsePref("quietWhenWatching", stored.quietWhenWatching),
       autoUpdate: parsePref("autoUpdate", stored.autoUpdate),
       knockStyle: parsePref("knockStyle", stored.knockStyle),
+      impatient: parsePref("impatient", stored.impatient),
     };
     this._petX = typeof stored.petX === "number" && Number.isFinite(stored.petX) ? stored.petX : null;
   }
@@ -177,6 +182,12 @@ export class Preferences {
   }
   set knockStyle(v: KnockStyle) {
     this.set("knockStyle", v);
+  }
+  get impatient(): boolean {
+    return this.values.impatient;
+  }
+  set impatient(v: boolean) {
+    this.set("impatient", v);
   }
 
   get l10n(): L10n {

@@ -35,6 +35,29 @@ export interface KnockingState {
   recent: number[];
 }
 
+/// What a hit sounds and looks like: an ordinary knock, the rhythm's stomp and clap, or an impatient slam.
+export type HitKind = "knock" | "stomp" | "clap" | "slam";
+
+/// Hit times with their kinds, and when the glass cracks (Infinity: never).
+export interface KnockPlan {
+  hits: number[];
+  kinds: HitKind[];
+  crackAt: number;
+}
+
+/// Timing of the impatient knock (Windows addition, Pooria 2026-10-21).
+export const Impatience = {
+  /// Ordinary knocking before the rhythm starts (first knock at 1 s, so the rhythm starts ~20 s in).
+  KNOCK_SECONDS: 19,
+  ROCK_SECONDS: 15,
+  /// "We Will Rock You" tempo - only the rhythm, no tune.
+  BPM: 81,
+  SLAMS: 6,
+} as const;
+
+/// Floating word on the glass for each kind of hit (onomatopoeia, not translated); `knock` uses the localized word.
+export const HIT_WORDS: Record<Exclude<HitKind, "knock">, string> = { stomp: "BOOM", clap: "CLAP!", slam: "BANG!" };
+
 export const Knocking = {
   /// Hit times (seconds since the alert began): three quick knocks per cycle, frequent at first, then calmer.
   // port of Animation.swift Knocking.schedule
@@ -46,6 +69,29 @@ export const Knocking = {
       c += i < 3 ? 3.2 : 12;
     }
     return out;
+  },
+
+  /// Windows addition (Pooria, 2026-10-21): the knock for an agent nobody answers. Knocks every few seconds for
+  /// ~19 s, then the "stomp stomp clap" rhythm (81 bpm) for 15 s, then six slams - and the glass cracks.
+  /// `start`: the first knock, seconds since the alert began; the escalation follows it.
+  impatient(start: number): KnockPlan {
+    const hits: number[] = [];
+    const kinds: HitKind[] = [];
+    const add = (t: number, kind: HitKind): void => {
+      hits.push(t);
+      kinds.push(kind);
+    };
+    const rockAt = start + Impatience.KNOCK_SECONDS;
+    for (let c = start; c + 0.48 < rockAt; c += 3.2) for (let k = 0; k < 3; k++) add(c + k * 0.24, "knock");
+    const beat = 60 / Impatience.BPM / 2; // eighth notes: stomp on 1, stomp on "and", clap on 2
+    for (let g = rockAt; g + 2 * beat < rockAt + Impatience.ROCK_SECONDS; g += 4 * beat) {
+      add(g, "stomp");
+      add(g + beat, "stomp");
+      add(g + 2 * beat, "clap");
+    }
+    const slams = rockAt + Impatience.ROCK_SECONDS + 0.6;
+    for (let k = 0; k < Impatience.SLAMS; k++) add(slams + k * 0.17, "slam");
+    return { hits, kinds, crackAt: slams + (Impatience.SLAMS - 1) * 0.17 };
   },
 
   // port of Animation.swift Knocking.state
@@ -95,6 +141,10 @@ export class AnimationInput {
   direction = 1;
   alertElapsed = 0;
   knockHits: number[] = [];
+  /// Windows addition: the kind of each hit (missing = all ordinary knocks).
+  knockKinds: HitKind[] = [];
+  /// Windows addition: seconds since the glass cracked; -1 = not cracked.
+  crackAge = -1;
   /// Where to look (-1...1), e.g. toward the cursor; null lets the eyes wander.
   lookTarget: Point | null = null;
   heartAges: number[] = [];
@@ -180,12 +230,44 @@ export class Animator {
       p.rightArmInFront = k.armUp >= 0.5;
       p.press = 1 + k.depth * 1.3;
       s.knockAges = k.recent;
+      // Windows addition: the impatient knock - a word per hit kind, a harder shake for claps and slams, the crack.
+      let lastKind = "knock" as HitKind; // assigned in the forEach below
+      i.knockHits.forEach((h, n) => {
+        const d = i.alertElapsed - h;
+        if (d < 0) return;
+        const kind = i.knockKinds[n] ?? "knock";
+        lastKind = kind;
+        if (d < 2.5) s.knockWords.push(kind === "knock" ? null : HIT_WORDS[kind]);
+      });
+      const strength = lastKind === "slam" ? 3 : lastKind === "clap" ? 1.8 : lastKind === "stomp" ? 1.3 : 1;
       if (k.since < 0.14) {
-        const f = 1 - k.since / 0.14;
+        const f = (1 - k.since / 0.14) * strength;
         s.shake = {
           width: Math.sin(k.since * 95) * 2.2 * f,
           height: Math.cos(k.since * 80) * 1.2 * f,
         };
+      }
+      if (i.crackAge >= 0) {
+        s.crackAge = i.crackAge;
+        p.mood = "surprised";
+        p.mouth = "o";
+        p.mouthOpen = 1;
+        p.eyeOpen = 1;
+        p.headTilt = 0;
+        // jumps back from the glass, then stays very still
+        const jolt = i.crackAge < 0.5 ? Math.sin((i.crackAge / 0.5) * Math.PI) : 0;
+        p.lift = -jolt * 10;
+        // "whoa": both hands half up (right arm angles are negative outward, left arm positive; under 80 degrees,
+        // so the ninja does not draw its katana)
+        p.rightArm = lerp(p.rightArm, -65, smooth(i.crackAge / 0.3));
+        p.leftArm = lerp(p.leftArm, 65, smooth(i.crackAge / 0.3));
+        p.reach = 0;
+        p.rightArmInFront = false;
+        p.press = 1;
+        if (i.crackAge < 0.4) {
+          const f = (1 - i.crackAge / 0.4) * 4;
+          s.shake = { width: Math.sin(i.crackAge * 90) * 2.2 * f, height: Math.cos(i.crackAge * 70) * 1.2 * f };
+        }
       }
     } else {
       Animator.apply(i.activity, e, i, p, s);
