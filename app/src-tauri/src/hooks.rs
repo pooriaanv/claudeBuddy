@@ -290,6 +290,21 @@ fn shape_error(path: &Path, message: String) -> HooksError {
 impl fmt::Display for HooksError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            // Most often the folder was created by the agent run with sudo, so it belongs to root (a Linux user report).
+            HooksError::Io { path, source } if source.kind() == io::ErrorKind::PermissionDenied => {
+                let dir = path.parent().unwrap_or(path);
+                if cfg!(windows) {
+                    write!(f, "{}: permission denied; it was not changed. Is the file read-only?", path.display())
+                } else {
+                    write!(
+                        f,
+                        "{}: permission denied; it was not changed. The folder probably belongs to another user (an agent \
+                         once run with sudo). Fix it with:  sudo chown -R \"$USER\" '{}'",
+                        path.display(),
+                        dir.display()
+                    )
+                }
+            }
             HooksError::Io { path, source } => write!(f, "{}: {source}", path.display()),
             HooksError::InvalidJson { path, message } => {
                 write!(f, "{} is not valid JSON ({message}); it was not changed", path.display())
@@ -580,6 +595,19 @@ mod tests {
         assert!(hooks["PermissionRequest"][0]["hooks"][0]["command"].as_str().unwrap().ends_with(" codex permission"));
         assert_eq!(hooks.get("Notification"), None);
         assert!(config(&dir, codex).ends_with(Path::new(".codex").join("hooks.json")));
+    }
+
+    #[test]
+    fn permission_denied_says_what_to_do() {
+        let e = HooksError::Io {
+            path: PathBuf::from("/home/me/.claude/settings.json"),
+            source: io::Error::from(io::ErrorKind::PermissionDenied),
+        };
+        let text = e.to_string();
+        assert!(text.contains("permission denied; it was not changed"), "{text}");
+        if !cfg!(windows) {
+            assert!(text.contains("sudo chown -R \"$USER\" '/home/me/.claude'"), "{text}");
+        }
     }
 
     #[test]
