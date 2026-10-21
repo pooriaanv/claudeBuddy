@@ -24,6 +24,7 @@ class FakePet {
   hint: string | null = null;
   onDismissRequested: (() => void) | null = null;
   onPetted: (() => void) | null = null;
+  onGaveUp: (() => void) | null = null;
   knock(title: string, subtitle: string): void {
     this.knocks.push([title, subtitle]);
   }
@@ -132,6 +133,16 @@ describe("Coordinator", () => {
     await settle();
     pet.onPetted?.();
     expect(c.queue.entries.map((w) => w.agent)).toEqual(["Codex"]);
+  });
+
+  it("afterGivingUpTheSessionStaysWaitingButQuiet", async () => {
+    const { c, pet, settle } = setup();
+    c.receive([event("claude", "done", "s1")]);
+    await settle();
+    pet.onGaveUp?.();
+    expect(c.queue.isEmpty).toBe(false);
+    expect(c.queue.needsKnock).toBe(false);
+    expect(pet.hint).toContain("my-app");
   });
 
   it("testKnockAndPreferencesChanged", async () => {

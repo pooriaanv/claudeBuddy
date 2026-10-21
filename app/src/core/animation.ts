@@ -43,16 +43,23 @@ export interface KnockPlan {
   hits: number[];
   kinds: HitKind[];
   crackAt: number;
+  /// After the crack: go back to the spot and carry on (Infinity: never).
+  giveUpAt: number;
 }
 
 /// Timing of the impatient knock (Windows addition, Pooria 2026-10-21).
 export const Impatience = {
-  /// Ordinary knocking before the rhythm starts (first knock at 1 s, so the rhythm starts ~20 s in).
-  KNOCK_SECONDS: 19,
+  /// The ordinary knocking first (three knocks every 3.2 s at first, then every 12 s, as always), about this long.
+  CALM_SECONDS: 45,
   ROCK_SECONDS: 15,
   /// "We Will Rock You" tempo - only the rhythm, no tune.
   BPM: 81,
-  SLAMS: 6,
+  /// Silence after the rhythm, then ordinary knocking again for a few seconds.
+  PAUSE_SECONDS: 5,
+  KNOCK_AGAIN_SECONDS: 5,
+  SLAMS: 10,
+  /// The cracked glass stays this long (fading out at the end), then the buddy goes back to its own life.
+  CRACK_SECONDS: 5,
 } as const;
 
 /// Floating word on the glass for each kind of hit (onomatopoeia, not translated); `knock` uses the localized word.
@@ -77,30 +84,44 @@ export const Knocking = {
   impatient(start: number): KnockPlan {
     const hits: number[] = [];
     const kinds: HitKind[] = [];
-    const add = (t: number, kind: HitKind): void => {
-      hits.push(t);
-      kinds.push(kind);
+    const triple = (c: number): void => {
+      for (let k = 0; k < 3; k++) {
+        hits.push(c + k * 0.24);
+        kinds.push("knock");
+      }
     };
-    const rockAt = start + Impatience.KNOCK_SECONDS;
-    for (let c = start; c + 0.48 < rockAt; c += 3.2) for (let k = 0; k < 3; k++) add(c + k * 0.24, "knock");
-    const beat = 60 / Impatience.BPM / 2; // eighth notes: stomp on 1, stomp on "and", clap on 2
-    for (let g = rockAt; g + 2 * beat < rockAt + Impatience.ROCK_SECONDS; g += 4 * beat) {
-      add(g, "stomp");
-      add(g + beat, "stomp");
-      add(g + 2 * beat, "clap");
+    // ordinary knocking: the usual cycles (3.2 s apart three times, then 12 s) until about CALM_SECONDS
+    let c = start;
+    for (let i = 0; c < start + Impatience.CALM_SECONDS; i++) {
+      triple(c);
+      c += i < 3 ? 3.2 : 12;
     }
-    const slams = rockAt + Impatience.ROCK_SECONDS + 0.6;
-    for (let k = 0; k < Impatience.SLAMS; k++) add(slams + k * 0.17, "slam");
-    return { hits, kinds, crackAt: slams + (Impatience.SLAMS - 1) * 0.17 };
+    // the rhythm, from the next cycle on: stomp on 1, stomp on "and", clap on 2 (eighth notes)
+    const rockAt = c;
+    const beat = 60 / Impatience.BPM / 2;
+    for (let g = rockAt; g + 2 * beat < rockAt + Impatience.ROCK_SECONDS; g += 4 * beat) {
+      hits.push(g, g + beat, g + 2 * beat);
+      kinds.push("stomp", "stomp", "clap");
+    }
+    // a pause, a few ordinary knocks, then the slams
+    const again = rockAt + Impatience.ROCK_SECONDS + Impatience.PAUSE_SECONDS;
+    for (let k = again; k < again + Impatience.KNOCK_AGAIN_SECONDS; k += 3.2) triple(k);
+    const slams = again + Impatience.KNOCK_AGAIN_SECONDS + 0.6;
+    for (let k = 0; k < Impatience.SLAMS; k++) {
+      hits.push(slams + k * 0.17);
+      kinds.push("slam");
+    }
+    const crackAt = slams + (Impatience.SLAMS - 1) * 0.17;
+    return { hits, kinds, crackAt, giveUpAt: crackAt + Impatience.CRACK_SECONDS };
   },
 
   // port of Animation.swift Knocking.state
   state(e: number, hits: number[]): KnockingState {
     const st: KnockingState = { armUp: 0, depth: 0, since: 99, recent: [] };
     let i = 0;
-    while (i + 2 < hits.length) {
+    while (i < hits.length) {
       const a = hits[i];
-      const b = hits[i + 2];
+      const b = hits[Math.min(i + 2, hits.length - 1)]; // Windows: a shorter last group (ten slams) counts too
       if (e > a - 0.5 && e < b + 0.6) {
         const up = (e - (a - 0.45)) / 0.3;
         const down = (b + 0.55 - e) / 0.35;

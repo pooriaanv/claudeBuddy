@@ -155,6 +155,9 @@ export class PetController implements PressHandler {
   private kinds: HitKind[] = [];
   private crackAt = Infinity;
   private crackedAt: number | null = null;
+  private giveUpAt = Infinity;
+  /// Windows addition: the impatient knock ran its course (glass cracked) and the buddy goes back to its own life.
+  onGaveUp: (() => void) | null = null;
   private nextHit = 0;
   private bubbleText: { title: string; subtitle: string } | null = null;
   private animation: FrameAnimation | null = null;
@@ -477,10 +480,11 @@ export class PetController implements PressHandler {
   private setPlan(start: number): void {
     const plan: KnockPlan = this.prefs.impatient
       ? Knocking.impatient(start)
-      : { hits: Knocking.schedule(start), kinds: [], crackAt: Infinity };
+      : { hits: Knocking.schedule(start), kinds: [], crackAt: Infinity, giveUpAt: Infinity };
     this.hits = plan.hits;
     this.kinds = plan.kinds;
     this.crackAt = this.crackedAt === null ? plan.crackAt : Infinity;
+    this.giveUpAt = this.crackedAt === null ? plan.giveUpAt : this.giveUpAt;
   }
 
   private playDueKnocks(t: number): void {
@@ -496,6 +500,12 @@ export class PetController implements PressHandler {
       this.hits = this.hits.slice(0, this.nextHit); // no more knocking on a broken glass
       this.debug("impatient: the glass cracked");
       if (this.prefs.soundOn && e - this.crackAt < 0.2) this.sound.play(this.skin().tone, "crack");
+    }
+    if (this.crackedAt !== null && e >= this.giveUpAt) {
+      this.debug("impatient: gave up, back to its spot");
+      this.giveUpAt = Infinity;
+      this.onGaveUp?.();
+      this.goHome();
     }
   }
 

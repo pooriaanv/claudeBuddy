@@ -28,6 +28,10 @@ export class Coordinator {
     private readonly debug: (line: string) => void = () => {},
   ) {
     pet.onDismissRequested = () => this.dismissAll();
+    pet.onGaveUp = () => {
+      this.queue.quietAll();
+      this.queueChanged();
+    };
     pet.onPetted = () => {
       if (!this.queue.entries.some((w) => w.quiet)) return;
       this.queue.clearQuiet();

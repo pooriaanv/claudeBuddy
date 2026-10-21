@@ -5,7 +5,7 @@
 //
 // Swift `var g = ctx; ... g.translateBy(...)` copies are `ctx.save()` ... `ctx.restore()` here.
 
-import { AnimationInput, Animator } from "../core/animation";
+import { AnimationInput, Animator, Impatience } from "../core/animation";
 import type { Activity } from "../core/brain";
 import type { Bubble, PetScene, Point, SkinID, Size } from "../core/pose";
 import { BLACK, Palette, Paint, WHITE, circle, ellipse, fill, line, pt, rgb, rotated, roundedRect, stroke } from "./paint";
@@ -47,7 +47,12 @@ export function draw(ctx: CanvasRenderingContext2D, size: Size, scene: PetScene,
   );
   // Windows addition: the glass the buddy knocked on cracks (in front of the buddy - it is behind the glass).
   // The window in character space is x -20...220, y (-20 - extraTop)...300: the crack stays inside it.
-  if (scene.crackAge >= 0) crackedGlass(ctx, hit, scene.crackAge, { x: -16, y: -16 - extraTop, w: 232, h: 312 + extraTop });
+  if (scene.crackAge >= 0) {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(1, (Impatience.CRACK_SECONDS - scene.crackAge) / 0.6)); // fades before it leaves
+    crackedGlass(ctx, hit, scene.crackAge, { x: -16, y: -16 - extraTop, w: 232, h: 312 + extraTop });
+    ctx.restore();
+  }
   ctx.save(); // var fx = ctx
   ctx.translate(0, p.lift);
   scene.heartAges.forEach((age, i) => hearts(ctx, age, i));

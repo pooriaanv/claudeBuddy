@@ -72,11 +72,11 @@ export class KnockSound implements KnockSoundPlayer {
   play(tone: KnockTone, kind: HitKind | "crack" = "knock"): void {
     if (this.ctx === null) this.ctx = new AudioContext();
     const ctx = this.ctx;
-    // a slam is the character's own knock, louder; the rhythm and the crack have their own sounds
-    const key = kind === "knock" || kind === "slam" ? tone : kind;
+    // the rhythm's stomps and the slams are the character's own knock (slams louder); clap and crack are new
+    const key = kind === "clap" || kind === "crack" ? kind : tone;
     let buffer = this.buffers.get(key);
     if (buffer === undefined) {
-      const samples = key === tone ? knockSamples(tone) : effectSamples(key as "stomp" | "clap" | "crack");
+      const samples = key === tone ? knockSamples(tone) : effectSamples(key as "clap" | "crack");
       buffer = ctx.createBuffer(1, samples.length, SAMPLE_RATE);
       const ch = buffer.getChannelData(0);
       for (let i = 0; i < samples.length; i++) ch[i] = samples[i] / 32768;
@@ -85,7 +85,7 @@ export class KnockSound implements KnockSoundPlayer {
     const src = ctx.createBufferSource();
     src.buffer = buffer;
     const gain = ctx.createGain();
-    gain.gain.value = kind === "slam" ? Math.min(1, RECIPES[tone].volume * 1.35) : kind === "knock" ? RECIPES[tone].volume : 0.95;
+    gain.gain.value = kind === "slam" ? Math.min(1, RECIPES[tone].volume * 1.35) : key === tone ? RECIPES[tone].volume : 0.95;
     src.connect(gain).connect(ctx.destination);
     src.start();
   }
