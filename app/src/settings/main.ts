@@ -142,7 +142,7 @@ async function render(prefs: Preferences): Promise<void> {
   } else if (tab === 2) {
     // agentsTab
     const s1 = section();
-    for (const [agent, name] of [["claude", "Claude Code"], ["codex", "Codex"]] as const) {
+    for (const [agent, name] of [["claude", "Claude Code"], ["codex", "Codex"], ["cursor", "Cursor"]] as const) {
       const st = await invoke<HookStatus>("hooks_status", { agentName: agent });
       const info = el("div", "label");
       info.append(el("div", "agent-name", name));

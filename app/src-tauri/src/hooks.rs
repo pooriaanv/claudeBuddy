@@ -22,6 +22,8 @@ use std::path::{Path, PathBuf};
 pub enum AgentIntegration {
     Claude,
     Codex,
+    /// Windows addition (Pooria, 2026-10-22): Cursor's agent hooks (`~/.cursor/hooks.json`, flat entries).
+    Cursor,
 }
 
 /// One hook to install: (hook event, helper argument, matcher). Port of the `hooks` tuple array.
@@ -46,6 +48,13 @@ const CLAUDE_HOOKS: [HookSpec; 5] = [
     spec("PostToolUse", "dismiss", Some("*")),
 ];
 
+/// Cursor has no hook for "waiting for your OK" (its approvals stay in its own UI), so only done and dismiss.
+const CURSOR_HOOKS: [HookSpec; 3] = [
+    spec("stop", "done", None),
+    spec("beforeSubmitPrompt", "dismiss", None),
+    spec("postToolUse", "dismiss", None),
+];
+
 const CODEX_HOOKS: [HookSpec; 4] = [
     spec("Stop", "done", None),
     spec("PermissionRequest", "permission", Some("*")),
@@ -54,13 +63,14 @@ const CODEX_HOOKS: [HookSpec; 4] = [
 ];
 
 impl AgentIntegration {
-    pub const ALL: [AgentIntegration; 2] = [AgentIntegration::Claude, AgentIntegration::Codex];
+    pub const ALL: [AgentIntegration; 3] = [AgentIntegration::Claude, AgentIntegration::Codex, AgentIntegration::Cursor];
 
     /// The agent name the helper is called with (`rawValue`).
     pub fn raw_value(self) -> &'static str {
         match self {
             AgentIntegration::Claude => "claude",
             AgentIntegration::Codex => "codex",
+            AgentIntegration::Cursor => "cursor",
         }
     }
 
@@ -68,6 +78,7 @@ impl AgentIntegration {
         match self {
             AgentIntegration::Claude => "Claude Code",
             AgentIntegration::Codex => "Codex",
+            AgentIntegration::Cursor => "Cursor",
         }
     }
 
@@ -76,6 +87,7 @@ impl AgentIntegration {
         match self {
             AgentIntegration::Claude => home.join(".claude").join("settings.json"),
             AgentIntegration::Codex => home.join(".codex").join("hooks.json"),
+            AgentIntegration::Cursor => home.join(".cursor").join("hooks.json"),
         }
     }
 
@@ -83,6 +95,7 @@ impl AgentIntegration {
         match self {
             AgentIntegration::Claude => &CLAUDE_HOOKS,
             AgentIntegration::Codex => &CODEX_HOOKS,
+            AgentIntegration::Cursor => &CURSOR_HOOKS,
         }
     }
 
@@ -101,6 +114,7 @@ impl AgentIntegration {
         match self {
             AgentIntegration::Claude => home.join(".claude").exists(),
             AgentIntegration::Codex => home.join(".codex").exists() || on_path(std::env::var_os("PATH"), CODEX_NAMES),
+            AgentIntegration::Cursor => home.join(".cursor").exists(),
         }
     }
 
@@ -113,7 +127,7 @@ impl AgentIntegration {
         let Some(Value::Object(hooks)) = loaded.root.get("hooks") else { return false };
         self.hook_specs().iter().all(|spec| {
             groups_of(hooks.get(spec.event)).iter().any(|group| {
-                handlers_of(group).iter().any(|handler| {
+                handlers_of(group).iter().chain(std::iter::once(group)).any(|handler| {
                     handler
                         .get("command")
                         .and_then(Value::as_str)
@@ -137,6 +151,12 @@ impl AgentIntegration {
                     Some(Value::Array(groups)) => groups.clone(),
                     Some(_) => return Err(shape_error(&path, format!("hooks.{} is not an array", spec.event))),
                 };
+                if self == AgentIntegration::Cursor {
+                    // Cursor: `"stop": [{ "command": "..." }]`, no groups
+                    groups.push(json!({ "command": self.command(&helper, spec.arg) }));
+                    hooks.insert(spec.event.to_string(), Value::Array(groups));
+                    continue;
+                }
                 let handler = json!({ "type": "command", "command": self.command(&helper, spec.arg) });
                 let mut group = Map::new();
                 if let Some(matcher) = spec.matcher {
@@ -145,6 +165,9 @@ impl AgentIntegration {
                 group.insert("hooks".into(), Value::Array(vec![handler]));
                 groups.push(Value::Object(group));
                 hooks.insert(spec.event.to_string(), Value::Array(groups));
+            }
+            if self == AgentIntegration::Cursor && !root.contains_key("version") {
+                root.insert("version".into(), json!(1)); // Cursor's hooks.json schema version
             }
             root.insert("hooks".into(), Value::Object(hooks));
             Ok(())
@@ -225,6 +248,11 @@ fn strip(hooks: &mut Map<String, Value>) -> bool {
         let Value::Array(groups) = value else { continue };
         let mut removed_here = false;
         groups.retain_mut(|group| {
+            // a flat entry (Cursor: `{ "command": ... }`) that is ours goes as a whole
+            if group.get("command").and_then(Value::as_str).is_some_and(is_buddy_command) {
+                removed_here = true;
+                return false;
+            }
             let Some(handlers) = group.get_mut("hooks").and_then(Value::as_array_mut) else { return true };
             let before = handlers.len();
             handlers.retain(|h| !h.get("command").and_then(Value::as_str).is_some_and(is_buddy_command));
@@ -565,6 +593,52 @@ mod tests {
         assert_eq!(hooks["PostToolUse"][0]["matcher"], "*");
         assert_eq!(hooks["PostToolUse"][0]["hooks"][0]["command"], format!("{helper} claude dismiss"));
         assert_eq!(buddy_handlers(&value), 5);
+    }
+
+    #[test]
+    fn cursor_connect_adds_flat_entries_and_keeps_everything_else() {
+        let dir = TempDir::new();
+        let p = paths(&dir);
+        let cursor = AgentIntegration::Cursor;
+        // Cursor's own example config (cursor.com/docs/agent/hooks)
+        let original = json!({
+            "version": 1,
+            "hooks": {
+                "afterFileEdit": [{ "command": ".cursor/hooks/format.sh" }],
+                "beforeShellExecution": [{ "command": ".cursor/hooks/guard.sh", "matcher": "curl|wget", "failClosed": true }],
+                "stop": [{ "command": ".cursor/hooks/notify.sh", "loop_limit": 5 }]
+            }
+        });
+        write_config(&dir, cursor, &pretty_with_newline(&original));
+        cursor.connect(&p).unwrap();
+        assert!(cursor.is_connected(&p));
+        let v = read_json(&dir, cursor);
+        assert_eq!(v["version"], json!(1));
+        let stop = v["hooks"]["stop"].as_array().unwrap();
+        assert_eq!(stop[0]["command"], json!(".cursor/hooks/notify.sh"));
+        assert!(stop[1]["command"].as_str().unwrap().ends_with(" cursor done"));
+        assert!(stop[1].get("hooks").is_none(), "flat entry, no Claude-style group");
+        assert!(v["hooks"]["beforeSubmitPrompt"][0]["command"].as_str().unwrap().ends_with(" cursor dismiss"));
+        assert!(v["hooks"]["postToolUse"][0]["command"].as_str().unwrap().ends_with(" cursor dismiss"));
+        assert_eq!(v["hooks"]["beforeShellExecution"], original["hooks"]["beforeShellExecution"]);
+        // connecting twice does not duplicate
+        cursor.connect(&p).unwrap();
+        assert_eq!(read_json(&dir, cursor)["hooks"]["stop"].as_array().unwrap().len(), 2);
+        // disconnect restores the user's file
+        cursor.disconnect(&p).unwrap();
+        assert!(!cursor.is_connected(&p));
+        assert_eq!(read_json(&dir, cursor), original);
+    }
+
+    #[test]
+    fn cursor_connect_creates_the_file_with_a_version() {
+        let dir = TempDir::new();
+        let p = paths(&dir);
+        AgentIntegration::Cursor.connect(&p).unwrap();
+        let v = read_json(&dir, AgentIntegration::Cursor);
+        assert_eq!(v["version"], json!(1));
+        assert_eq!(v["hooks"].as_object().unwrap().len(), 3);
+        assert!(config(&dir, AgentIntegration::Cursor).ends_with(Path::new(".cursor").join("hooks.json")));
     }
 
     #[test]
