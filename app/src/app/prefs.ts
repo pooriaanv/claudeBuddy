@@ -121,13 +121,27 @@ export class Preferences {
       impatient: parsePref("impatient", stored.impatient),
     };
     this._petX = typeof stored.petX === "number" && Number.isFinite(stored.petX) ? stored.petX : null;
+    this._lastSeenVersion = typeof stored.lastSeenVersion === "string" ? stored.lastSeenVersion : null;
+    this.isFirstRun = Object.values(stored).every((v) => v === undefined || v === null);
+  }
+
+  /// Windows addition (Pooria, 2026-10-22): the app version whose "What's new" the user has seen (null: none yet).
+  private _lastSeenVersion: string | null;
+  /// Nothing was stored before this launch: a fresh install, not an update.
+  readonly isFirstRun: boolean;
+  get lastSeenVersion(): string | null {
+    return this._lastSeenVersion;
+  }
+  set lastSeenVersion(v: string | null) {
+    this._lastSeenVersion = v;
+    void this.store.set("lastSeenVersion", v);
   }
 
   /// Opens `prefs.json` through tauri-plugin-store and follows changes made by other windows.
   static async load(store?: KeyValueStore): Promise<Preferences> {
     const s = store ?? (await openPluginStore());
     const stored: Record<string, unknown> = {};
-    for (const key of [...PREF_KEYS, "petX"]) stored[key] = await s.get(key);
+    for (const key of [...PREF_KEYS, "petX", "lastSeenVersion"]) stored[key] = await s.get(key);
     const prefs = new Preferences(s, stored);
     if (s.onChange !== undefined) {
       await s.onChange((key, value) => prefs.externalChange(key, value));

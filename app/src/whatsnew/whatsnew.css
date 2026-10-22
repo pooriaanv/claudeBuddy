@@ -1,0 +1,16 @@
+/* "What's new" window (Windows addition, Pooria 2026-10-22): the settings window's colours, a scrolling list of notes. */
+body { user-select: text; }
+#head { display: flex; align-items: center; gap: 12px; padding: 18px 20px 10px; }
+#head canvas { width: 44px; height: 44px; flex: none; }
+#head h1 { font-size: 16px; margin: 0; font-weight: 600; }
+#head .since { color: var(--secondary); margin-top: 2px; }
+#notes { flex: 1; overflow-y: auto; padding: 4px 20px 12px; }
+#notes section { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px; padding: 10px 14px; margin-bottom: 10px; }
+#notes h2 { font-size: 13px; margin: 0 0 6px; display: flex; justify-content: space-between; }
+#notes h2 .date { color: var(--secondary); font-weight: 400; }
+#notes ul { margin: 4px 0; padding-left: 18px; }
+#notes li { margin: 4px 0; line-height: 1.45; }
+#notes p { margin: 4px 0; line-height: 1.45; }
+#notes code { font-family: Consolas, "Cascadia Mono", monospace; font-size: 12px; background: var(--control); border-radius: 4px; padding: 0 4px; }
+footer { padding: 10px 20px 16px; display: flex; justify-content: flex-end; }
+footer button { background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 6px 18px; font: inherit; cursor: pointer; }

@@ -84,6 +84,32 @@ pub async fn open_settings(app: tauri::AppHandle, title: String) -> Result<(), S
     open_settings_tab(app, title, None)
 }
 
+/// Windows addition (Pooria, 2026-10-22): the "What's new" window, 480x560, centered, focused. `since`: the version the
+/// user updated from (only digits and dots are passed on). async for the same reason as `open_settings`.
+#[tauri::command]
+pub async fn open_whats_new(app: tauri::AppHandle, title: String, since: Option<String>) -> Result<(), String> {
+    if let Some(w) = app.get_webview_window("whatsnew") {
+        let _ = w.unminimize();
+        let _ = w.set_focus();
+        return Ok(());
+    }
+    let url = match since.filter(|s| !s.is_empty() && s.chars().all(|c| c.is_ascii_digit() || c == '.')) {
+        Some(s) => format!("whatsnew.html?since={s}"),
+        None => "whatsnew.html".to_string(),
+    };
+    let builder = WebviewWindowBuilder::new(&app, "whatsnew", WebviewUrl::App(url.into()))
+        .title(title)
+        .inner_size(480.0, 560.0)
+        .min_inner_size(380.0, 300.0)
+        .resizable(true)
+        .center()
+        .focused(true);
+    #[cfg(windows)]
+    let builder = builder.additional_browser_args(crate::BROWSER_ARGS);
+    builder.build().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 /// `tab` (0-3) is for the DEBUG (P5) `BUDDY_DEBUG_SETTINGS=<tab>` screenshots only.
 pub fn open_settings_tab(app: tauri::AppHandle, title: String, tab: Option<u8>) -> Result<(), String> {
     if let Some(w) = app.get_webview_window("settings") {

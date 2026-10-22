@@ -68,6 +68,7 @@ pub fn run() {
             agents::set_active_marker,
             tray::set_tray,
             tray::open_settings,
+            tray::open_whats_new,
             tray::set_settings_title,
             tray::settings_action,
             tray::quit,

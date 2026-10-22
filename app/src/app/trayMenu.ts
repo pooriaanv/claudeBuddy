@@ -43,6 +43,7 @@ export function rebuildTray(prefs: Preferences, waiting: readonly Waiting[], upd
     items.push({ kind: "separator" });
   }
   items.push({ kind: "item", id: "settings", label: l.t("menuSettings") });
+  items.push({ kind: "item", id: "whatsNew", label: l.t("menuWhatsNew") });
   items.push({ kind: "item", id: "checkUpdates", label: l.t("menuCheckUpdates") });
   items.push({ kind: "separator" });
   items.push({ kind: "item", id: "testKnock", label: l.t("menuTestKnock") });
