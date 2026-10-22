@@ -78,6 +78,11 @@ export class AttentionQueue {
     }
   }
 
+  /// Windows addition: the impatient knock gave up - keep everyone waiting, but quietly (the hint above the head).
+  quietAll(): void {
+    for (const [key, w] of this.items) this.items.set(key, { ...w, quiet: true });
+  }
+
   /// "Got it": forget the quiet ones (the buddy was clicked).
   clearQuiet(): void {
     for (const [key, w] of [...this.items]) if (w.quiet) this.items.delete(key);

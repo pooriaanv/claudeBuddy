@@ -141,6 +141,10 @@ export class PetScene {
   shake: Size = { width: 0, height: 0 };
   /// Ages (seconds) of recent knocks on the glass.
   knockAges: number[] = [];
+  /// Windows addition: the word for each of `knockAges` (BOOM / CLAP! / BANG!); missing -> `knockText`.
+  knockWords: (string | null)[] = [];
+  /// Windows addition: seconds since the glass cracked; -1 = not cracked.
+  crackAge = -1;
   /// Ages of hearts floating up after a pat.
   heartAges: number[] = [];
   sleeping = false;

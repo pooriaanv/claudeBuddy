@@ -71,6 +71,7 @@ export const L10N_KEYS = [
   "knockStyle",
   "knockStyleCenter",
   "knockStyleInPlace",
+  "impatient",
 ] as const;
 export type L10nKey = (typeof L10N_KEYS)[number];
 
@@ -286,5 +287,7 @@ export class L10n {
     knockStyle: { en: "Knock", fa: "در زدن" },
     knockStyleCenter: { en: "Big, in the middle", fa: "بزرگ، وسط صفحه" },
     knockStyleInPlace: { en: "Right where it is", fa: "همون‌جا که هست" },
+    // Windows addition (Pooria, 2026-10-21)
+    impatient: { en: "Get impatient if I don't answer", fa: "اگه جواب ندادم، بی‌تاب شه" },
   };
 }

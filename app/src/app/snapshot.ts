@@ -8,6 +8,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { AnimationInput, Animator, Knocking } from "../core/animation";
+import type { HitKind } from "../core/animation";
 import type { Activity } from "../core/brain";
 import { makeWaiting } from "../core/attention";
 import { L10n } from "../core/localization";
@@ -283,6 +284,52 @@ function renderTweet(inPlace: boolean): HTMLCanvasElement {
   return img;
 }
 
+/// Preview of the impatient knock (Pooria, 2026-10-21): a few frames from knock to cracked glass, two characters.
+function renderImpatient(l10n: L10n): HTMLCanvasElement {
+  const plan = Knocking.impatient(1.0);
+  const at = (kind: HitKind, n = 0): number => plan.hits.filter((_, i) => plan.kinds[i] === kind)[n];
+  const frames: [string, number, number][] = [
+    ["knock", at("knock") + 0.03, -1],
+    ["BOOM (stomp)", at("stomp") + 0.03, -1],
+    ["CLAP!", at("clap") + 0.03, -1],
+    ["BANG! (slam)", at("slam", 3) + 0.03, -1],
+    ["crack 0.1 s", plan.crackAt + 0.1, 0.1],
+    ["whoa 0.5 s", plan.crackAt + 0.5, 0.5],
+    ["sheepish 1.6 s", plan.crackAt + 1.6, 1.6],
+    ["sheepish 2.7 s", plan.crackAt + 2.7, 2.7],
+    ["fading 3.7 s", plan.crackAt + 3.7, 3.7],
+  ];
+  const skins: SkinID[] = ["buddy", "ninja"];
+  const W = 240;
+  const H = 320;
+  const [sheet, ctx] = newCanvas(W * frames.length, (H + 20) * skins.length);
+  ctx.fillStyle = "rgb(84, 84, 84)";
+  ctx.fillRect(0, 0, sheet.width, sheet.height);
+  const b = l10n.bubble([makeWaiting("Claude", "my-app", { type: "finished" })]);
+  skins.forEach((skin, row) => {
+    frames.forEach(([name, e, crack], col) => {
+      const input = new AnimationInput(10.05 + e);
+      input.mode = "alert";
+      input.alertElapsed = e;
+      input.knockHits = plan.hits;
+      input.knockKinds = plan.kinds;
+      input.crackAge = crack;
+      const scene = Animator.scene(input);
+      scene.bubble = new Bubble(b.title, b.subtitle, false, 1);
+      scene.knockText = l10n.t("knockWord");
+      ctx.save();
+      ctx.translate(col * W, row * (H + 20));
+      ctx.beginPath();
+      ctx.rect(0, 0, W, H);
+      ctx.clip();
+      draw(ctx, { width: W, height: H }, scene, skinFor(skin));
+      ctx.restore();
+      label(ctx, `${skin} · ${name}`, col * W + W / 2, row * (H + 20) + H + 2, 0.8);
+    });
+  });
+  return sheet;
+}
+
 function renderIcon(): HTMLCanvasElement {
   const [icon, ctx] = newCanvas(1024, 1024);
   try {
@@ -434,7 +481,9 @@ async function main(): Promise<void> {
   setFontVariant(variant);
   await loadFonts();
   const l10n = new L10n(lang);
-  if (mode === "tweet" || mode === "tweetinplace") {
+  if (mode === "impatient") {
+    await invoke("snapshot_done", { pngBase64: pngBase64(renderImpatient(l10n)), menubarBase64: null });
+  } else if (mode === "tweet" || mode === "tweetinplace") {
     await invoke("snapshot_done", { pngBase64: pngBase64(renderTweet(mode === "tweetinplace")), menubarBase64: null });
   } else if (mode === "banner") {
     await invoke("snapshot_done", { pngBase64: pngBase64(renderBanner()), menubarBase64: null });

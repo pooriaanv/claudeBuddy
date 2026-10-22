@@ -40,6 +40,8 @@ describe("Preferences", () => {
     expect(p.size).toBe(150);
     expect(p.quietWhenWatching).toBe(false);
     expect(p.autoUpdate).toBe(true);
+    // Pooria: the impatient knock is on by default - also for users updating from a version without this setting
+    expect(p.impatient).toBe(true);
     expect(p.petX).toBeNull();
     expect(PREF_DEFAULTS.size).toBe(150);
   });
