@@ -2,6 +2,16 @@
 
 Every release's notes on GitHub come from its section here (`## <version> — <date>`), so add one before tagging.
 
+## 0.4.0 — 2026-10-22
+
+- **It gets impatient.** If nobody answers, the buddy knocks for a while, then stomps out the "We Will Rock You"
+  beat (boom, boom, clap!), pauses, knocks again, hammers on the glass - and cracks it. Then it looks a bit
+  sheepish and goes back to its spot. Don't like it? Settings → Behavior → "Get impatient if I don't answer".
+- **Cursor.** Connect it in Settings → Agents and the buddy knocks when Cursor's agent finishes.
+- **What's new.** After an update you see what changed - like right now. Also in the tray: "What's New…".
+- Clearer message when the agent's settings folder can't be written (usually a folder created with sudo on
+  Linux or macOS), with the exact command that fixes it.
+
 ## 0.3.1 — 2026-10-21
 
 - Security: the update download now uses the patched TLS certificate checks (rustls-webpki 0.103.16,

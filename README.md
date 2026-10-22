@@ -22,7 +22,7 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)
 [![License: MIT](https://img.shields.io/github/license/pooriaanv/claudeBuddy?color=green)](LICENSE)
 
-Works with **Claude Code**, **Codex**, or any CLI · 8 characters · English / فارسی · self-updating
+Works with **Claude Code**, **Codex**, **Cursor**, or any CLI · 8 characters · English / فارسی · self-updating
 
 [⬇ Download](https://github.com/pooriaanv/claudeBuddy/releases/latest) · [What's new](CHANGELOG.md) · [Report a bug](https://github.com/pooriaanv/claudeBuddy/issues/new/choose)
 
@@ -74,7 +74,7 @@ English / فارسی, and one-click agent hooks.
   Needs X11 or XWayland (a Wayland session runs it through XWayland automatically); the tray icon needs
   AppIndicator support (built into Ubuntu; on other GNOME desktops, the AppIndicator extension).
 
-Then: tray / menu bar icon → **Settings… → Agents → Connect** next to Claude Code (and/or Codex).
+Then: tray / menu bar icon → **Settings… → Agents → Connect** next to Claude Code (and/or Codex, Cursor).
 
 Connecting adds only the buddy's entries to `~/.claude/settings.json` (a `.buddy-backup` copy is kept); your other
 hooks and settings are untouched. *Disconnect* removes them again.
