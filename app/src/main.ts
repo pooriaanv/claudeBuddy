@@ -1,6 +1,7 @@
 // Pet window entry (12-windows-plan.md P3): prefs + fonts, the PetController on one transparent canvas, click-through
 // input, live preference changes. The Coordinator (agents, queue, tray) arrives in P4/P5.
 
+import { getVersion } from "@tauri-apps/api/app";
 import { emit, listen } from "@tauri-apps/api/event";
 import { PetInput, PressTracker } from "./app/hitTest";
 import { PetController } from "./app/pet";
@@ -19,6 +20,7 @@ async function main(): Promise<void> {
   const canvas = document.getElementById("pet") as HTMLCanvasElement;
   const dbg = await debugConfig();
   const prefs = await Preferences.load();
+  const appVersion = await getVersion();
   await loadFonts(); // canvas text never waits for a font: the bubble / hint need the faces before the first frame
   const monitors = await ipc.monitors();
 
@@ -68,6 +70,9 @@ async function main(): Promise<void> {
       case "settings":
         void invoke("open_settings", { title: prefs.l10n.t("settingsTitle") });
         break;
+      case "whatsNew":
+        void invoke("open_whats_new", { title: prefs.l10n.format("whatsNewTitle", { v: appVersion }), since: null });
+        break;
       case "testKnock":
         coordinator.testKnock();
         break;
@@ -97,6 +102,16 @@ async function main(): Promise<void> {
 
   await pet.start(); // window on the floor + first frame drawn
   await ipc.petReady(); // shows the window (no white flash)
+
+  // Windows addition (Pooria, 2026-10-22): after an update, show what changed (not after a fresh install).
+  const seen = prefs.lastSeenVersion;
+  if (seen !== appVersion) {
+    if (!prefs.isFirstRun) {
+      const title = prefs.l10n.format("whatsNewTitle", { v: appVersion });
+      setTimeout(() => void invoke("open_whats_new", { title, since: seen }), 1500);
+    }
+    prefs.lastSeenVersion = appVersion;
+  }
 }
 
 void main();

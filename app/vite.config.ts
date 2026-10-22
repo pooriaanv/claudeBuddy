@@ -20,6 +20,7 @@ export default defineConfig(() => ({
         main: resolve(process.cwd(), "index.html"),
         snapshot: resolve(process.cwd(), "snapshot.html"),
         settings: resolve(process.cwd(), "settings.html"),
+        whatsnew: resolve(process.cwd(), "whatsnew.html"),
       },
     },
   },
@@ -45,6 +46,8 @@ export default defineConfig(() => ({
           port: 1421,
         }
       : undefined,
+    // the "What's new" window bundles ../CHANGELOG.md (outside the app folder)
+    fs: { allow: [".."] },
     watch: {
       // 3. tell Vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],
