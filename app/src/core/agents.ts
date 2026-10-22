@@ -84,8 +84,10 @@ export class HookAgentAdapter implements AgentAdapter {
     switch (name) {
       case "done":
       case "Stop":
+      case "stop":
       case "agent-turn-complete":
-        return { type: "finished" };
+        // Cursor's stop carries a status: "aborted" means you stopped it yourself - you're right there
+        return payload["status"] === "aborted" ? { type: "resumed" } : { type: "finished" };
       case "permission":
       case "PermissionRequest":
       case "approval-requested":
@@ -109,7 +111,7 @@ export class HookAgentAdapter implements AgentAdapter {
   }
 
   static session(p: Record<string, unknown>): string {
-    for (const key of ["session_id", "thread-id", "thread_id", "session"]) {
+    for (const key of ["session_id", "thread-id", "thread_id", "session", "conversation_id"]) {
       const s = str(p[key]);
       if (s !== undefined && s !== "") return s;
     }
@@ -121,6 +123,9 @@ export class HookAgentAdapter implements AgentAdapter {
     if (name !== undefined && name !== "") return name;
     const cwd = str(p["cwd"]);
     if (cwd !== undefined && cwd !== "") return lastPathComponent(cwd);
+    // Cursor: the open folders instead of a cwd
+    const roots = p["workspace_roots"];
+    if (Array.isArray(roots) && typeof roots[0] === "string" && roots[0] !== "") return lastPathComponent(roots[0]);
     return "";
   }
 }
@@ -192,7 +197,11 @@ export const ScreenWindows = {
 };
 
 export const AgentAdapters = {
-  known: [new HookAgentAdapter("claude", "Claude"), new HookAgentAdapter("codex", "Codex")] as readonly AgentAdapter[],
+  known: [
+    new HookAgentAdapter("claude", "Claude"),
+    new HookAgentAdapter("codex", "Codex"),
+    new HookAgentAdapter("cursor", "Cursor"), // Windows addition (Pooria, 2026-10-22)
+  ] as readonly AgentAdapter[],
 
   adapter(source: string): AgentAdapter {
     const key = source.toLowerCase();

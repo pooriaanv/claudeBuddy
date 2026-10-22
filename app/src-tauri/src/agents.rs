@@ -124,6 +124,7 @@ fn agent(name: &str) -> Result<AgentIntegration, String> {
     match name {
         "claude" => Ok(AgentIntegration::Claude),
         "codex" => Ok(AgentIntegration::Codex),
+        "cursor" => Ok(AgentIntegration::Cursor),
         other => Err(format!("unknown agent {other}")),
     }
 }
@@ -171,7 +172,7 @@ pub fn cli(args: &[String]) -> Option<i32> {
     let a = match agent(name) {
         Ok(a) => a,
         Err(_) => {
-            println!("unknown agent {name}; use: claude, codex");
+            println!("unknown agent {name}; use: claude, codex, cursor");
             return Some(1);
         }
     };

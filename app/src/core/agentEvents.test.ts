@@ -288,3 +288,36 @@ describe("LocalizationTests", () => {
     }
   });
 });
+
+// Windows addition (Pooria, 2026-10-22): Cursor's agent hooks (stdin fields from cursor.com/docs/agent/hooks).
+describe("Cursor", () => {
+  const base = {
+    conversation_id: "conv-1",
+    generation_id: "gen-1",
+    hook_event_name: "stop",
+    workspace_roots: ["/home/me/code/my-app"],
+  };
+  const msg = (event: string, payload: Record<string, unknown>) =>
+    AgentAdapters.event(InboxMessage.parse(`cursor ${event}\n${JSON.stringify(payload)}`));
+
+  it("aCompletedStopKnocksForTheWorkspace", () => {
+    const e = msg("done", { ...base, status: "completed", loop_count: 0 });
+    expect(e?.kind).toEqual({ type: "finished" });
+    expect(e?.agent).toBe("Cursor");
+    expect(e?.session).toBe("cursor:conv-1");
+    expect(e?.project).toBe("my-app");
+  });
+
+  it("anErrorStillKnocks", () => {
+    expect(msg("done", { ...base, status: "error" })?.kind).toEqual({ type: "finished" });
+  });
+
+  it("youStoppingItYourselfDoesNotKnock", () => {
+    expect(msg("done", { ...base, status: "aborted" })?.kind).toEqual({ type: "resumed" });
+  });
+
+  it("aNewPromptOrAToolSendsItHome", () => {
+    expect(msg("dismiss", { ...base, hook_event_name: "beforeSubmitPrompt" })?.kind).toEqual({ type: "resumed" });
+    expect(msg("dismiss", { ...base, hook_event_name: "postToolUse" })?.kind).toEqual({ type: "resumed" });
+  });
+});
