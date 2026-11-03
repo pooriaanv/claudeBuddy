@@ -32,8 +32,9 @@ pub fn run(args: &[String], home: &Path, unix_secs: u64, pid: u32, sys: &mut dyn
     let root = home.join(".claude-buddy"); // dir="$HOME/.claude-buddy"
     let dismiss = inv.event == "dismiss";
 
+    // The user quit the app: stay out of the way until they start it again (no launch, no events to replay then).
     // if [ "$event" = "dismiss" ] && [ ! -f "$dir/active" ]; then read_payload >/dev/null; exit 0; fi
-    if dismiss && !root.join("active").is_file() {
+    if root.join("quit").is_file() || (dismiss && !root.join("active").is_file()) {
         let _ = read_payload(&inv, sys);
         return;
     }
@@ -244,6 +245,20 @@ mod tests {
         run(&args(&["claude", "done", "{}"]), &home.0, 1_760_000_000, 4242, &mut sys);
         assert_eq!(sys.launched, vec![PathBuf::from(r"C:\Apps\ClaudeBuddy\ClaudeBuddy.exe")]);
         assert_eq!(home.inbox_files().len(), 1, "the event is written before the app starts");
+    }
+
+    #[test]
+    fn after_a_quit_nothing_is_launched_or_queued_and_stdin_is_still_drained() {
+        let home = TempHome::new();
+        fs::create_dir_all(home.root()).unwrap();
+        fs::write(home.root().join("quit"), b"").unwrap();
+        fs::write(home.root().join("app-path"), "C:\\x\\ClaudeBuddy.exe").unwrap();
+        let mut sys = Fake { stdin: STOP_JSON.as_bytes().to_vec(), running: false, ..Fake::default() };
+        run(&args(&["claude", "done"]), &home.0, 1_760_000_000, 4242, &mut sys);
+        assert!(sys.launched.is_empty());
+        assert!(home.inbox_files().is_empty());
+        assert_eq!(sys.stdin_reads, 1);
+        assert_eq!(sys.host_lookups, 0);
     }
 
     #[test]

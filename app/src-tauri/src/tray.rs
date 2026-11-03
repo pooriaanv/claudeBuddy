@@ -150,9 +150,11 @@ pub fn settings_action(app: tauri::AppHandle, id: String) {
     let _ = app.emit_to("pet", "tray-action", TrayAction { id });
 }
 
-/// StatusMenu.quit: active marker off, exit.
+/// StatusMenu.quit: active marker off, quit marker on (the helper must not start the app again), exit.
 #[tauri::command]
 pub fn quit(app: tauri::AppHandle) {
-    BuddyPaths::current().set_active(false);
+    let paths = BuddyPaths::current();
+    paths.set_active(false);
+    paths.set_quit(true);
     app.exit(0);
 }
