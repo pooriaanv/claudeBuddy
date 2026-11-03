@@ -2,6 +2,12 @@
 
 Every release's notes on GitHub come from its section here (`## <version> — <date>`), so add one before tagging.
 
+## 0.4.1 — 2026-11-03
+
+- **Quit means quit.** After you quit the buddy from its menu, it no longer comes back when an agent finishes. It
+  stays closed until you open it again, or until it starts with your computer.
+- Security updates: zip 9 (fixes RUSTSEC-2026-0429) and 	okio 1.53.3, plus patch updates to Tauri and its plugins.
+
 ## 0.4.0 — 2026-10-22
 
 - **It gets impatient.** If nobody answers, the buddy knocks for a while, then stomps out the "We Will Rock You"
