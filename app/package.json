@@ -21,13 +21,13 @@
     "@tauri-apps/plugin-autostart": "^2.7.0",
     "@tauri-apps/plugin-process": "^2.4.0",
     "@tauri-apps/plugin-store": "^2.5.0",
-    "@tauri-apps/plugin-updater": "^2.14.0"
+    "@tauri-apps/plugin-updater": "^2.14.1"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.12.3",
+    "@tauri-apps/cli": "^2.12.4",
     "@vitest/coverage-v8": "^5.0.5",
     "typescript": "~7.0.2",
-    "vite": "^8.0.16",
+    "vite": "^8.3.5",
     "vitest": "^5.0.5"
   }
 }
