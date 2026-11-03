@@ -66,6 +66,11 @@ impl BuddyPaths {
         self.root().join("active")
     }
 
+    /// Exists from the user's Quit until the next launch; the helper then neither starts the app nor queues events.
+    pub fn quit_marker(&self) -> PathBuf {
+        self.root().join("quit")
+    }
+
     /// Holds the app's own exe path, written on every launch; the helper starts the app from it.
     pub fn app_path_file(&self) -> PathBuf {
         self.root().join("app-path")
@@ -145,6 +150,15 @@ impl BuddyPaths {
             let _ = fs::write(self.active_marker(), b"");
         } else {
             let _ = fs::remove_file(self.active_marker());
+        }
+    }
+
+    pub fn set_quit(&self, on: bool) {
+        if on {
+            let _ = fs::create_dir_all(self.root());
+            let _ = fs::write(self.quit_marker(), b"");
+        } else {
+            let _ = fs::remove_file(self.quit_marker());
         }
     }
 }
@@ -242,6 +256,18 @@ mod tests {
         p.set_active(true); // idempotent
         p.set_active(false);
         assert!(!p.active_marker().exists());
+    }
+
+    #[test]
+    fn quit_marker_toggles() {
+        let dir = TempDir::new();
+        let p = paths(&dir);
+        p.set_quit(false); // nothing there: no error, no directory created
+        assert!(!p.root().exists());
+        p.set_quit(true);
+        assert!(p.quit_marker().is_file());
+        p.set_quit(false);
+        assert!(!p.quit_marker().exists());
     }
 
     #[test]

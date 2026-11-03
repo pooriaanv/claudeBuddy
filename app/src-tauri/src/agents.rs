@@ -83,6 +83,7 @@ pub fn start(app: &tauri::AppHandle) {
     }
     let _ = paths.write_app_path();
     paths.set_active(false);
+    paths.set_quit(false);
     inbox::clean(&paths.inbox(), 15);
 
     let app = app.clone();
